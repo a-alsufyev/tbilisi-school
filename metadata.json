@@ -1,0 +1,5 @@
+{
+  "name": "Tbilisi Schools Catalog",
+  "description": "A catalog of schools in Tbilisi with an interactive map and multi-language support.",
+  "requestFramePermissions": []
+}
