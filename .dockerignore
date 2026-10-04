@@ -1,0 +1,13 @@
+node_modules
+dist
+build
+.git
+.env
+.env.*
+!.env.example
+coverage
+*.log
+.DS_Store
+docs
+data/stats.json
+data/stats.test.json

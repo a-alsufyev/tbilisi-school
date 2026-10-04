@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1788086933781,
+      "tag": "0000_stiff_psynapse",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790842351705,
+      "tag": "0001_school_website",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791040000000,
+      "tag": "0002_school_name_locale",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791043000000,
+      "tag": "0003_school_cost_status",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { School } from '../types';
-import { useSchoolTranslations } from '../hooks/useSchoolTranslations';
+import { localeSchoolName, primarySchoolName } from '../hooks/useSchoolTranslations';
+import { escapeHtml } from '../lib/escapeHtml';
+import { externalHref } from '../lib/website';
 
 interface MapViewProps {
   schools: School[];
@@ -21,7 +23,6 @@ const MapView: React.FC<MapViewProps> = ({ schools, apiKey, height = 'calc(100vh
   const mapRef = useRef<HTMLDivElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { translations } = useSchoolTranslations(schools, i18n.language);
 
   useEffect(() => {
     const container = mapRef.current;
@@ -48,7 +49,7 @@ const MapView: React.FC<MapViewProps> = ({ schools, apiKey, height = 'calc(100vh
 
   useEffect(() => {
     if (!apiKey) {
-      setError('Yandex Maps API Key is missing. Please add it to your environment variables.');
+      setError(t('map.missingKey'));
       return;
     }
 
@@ -59,7 +60,7 @@ const MapView: React.FC<MapViewProps> = ({ schools, apiKey, height = 'calc(100vh
       script.src = `https://api-maps.yandex.ru/2.1/?apikey=${apiKey}&lang=en_US`;
       script.async = true;
       script.onload = () => setIsLoaded(true);
-      script.onerror = () => setError('Failed to load Yandex Maps script');
+      script.onerror = () => setError(t('map.scriptError'));
       document.body.appendChild(script);
     } else if (window.ymaps) {
       setIsLoaded(true);
@@ -95,28 +96,25 @@ const MapView: React.FC<MapViewProps> = ({ schools, apiKey, height = 'calc(100vh
           const coords = school.coordinates.split(',').map(c => parseFloat(c.trim()));
           if (coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) return;
 
-          const getTranslatedName = (s: School) => {
-            return translations[s.name] || s.name;
-          };
-
-          const translatedName = getTranslatedName(school);
-          const showTranslation = translatedName && translatedName !== school.name;
+          const primaryName = primarySchoolName(school);
+          const localName = localeSchoolName(school, i18n.language);
           const balloonHeader = `
             <div class="font-bold text-indigo-700 cursor-pointer hover:underline school-link" data-id="${school.id}">
-              ${school.name}
+              ${escapeHtml(primaryName)}
             </div>
-            ${showTranslation ? `<div class="text-xs text-gray-500 font-medium">${translatedName}</div>` : ''}
+            ${localName ? `<div class="text-xs text-gray-500 font-medium">${escapeHtml(localName)}</div>` : ''}
           `;
 
           const placemark = new window.ymaps.Placemark(coords, {
             balloonContentHeader: balloonHeader,
             balloonContentBody: `
               <div class="text-sm">
-                <p><strong>${t('map.address')}:</strong> ${school.address}</p>
-                <p><strong>${t('map.languages')}:</strong> ${school.languages}</p>
+                <p><strong>${escapeHtml(t('map.address'))}:</strong> ${escapeHtml(school.address)}</p>
+                <p><strong>${escapeHtml(t('map.languages'))}:</strong> ${escapeHtml(school.languages)}</p>
+                ${school.website && externalHref(school.website) ? `<p><strong>${escapeHtml(t('catalog.website'))}:</strong> <a href="${escapeHtml(externalHref(school.website) ?? "")}" target="_blank" rel="noopener noreferrer">${escapeHtml(school.website)}</a></p>` : ''}
               </div>
             `,
-            hintContent: school.name,
+            hintContent: primaryName,
           }, {
             preset: 'islands#indigoEducationIcon',
           });
@@ -125,14 +123,14 @@ const MapView: React.FC<MapViewProps> = ({ schools, apiKey, height = 'calc(100vh
         });
       });
     }
-  }, [isLoaded, schools, t, i18n, translations]);
+  }, [isLoaded, schools, t, i18n]);
 
   if (error) {
     return (
       <div className={`flex items-center justify-center bg-gray-50 p-4`} style={{ height }}>
         <div className="bg-white p-6 rounded-xl shadow-md max-w-md text-center">
-          <p className="text-red-500 font-medium mb-2">⚠️ {error}</p>
-          <p className="text-gray-600 text-sm">Make sure you have a valid Yandex Maps API Key in your .env file.</p>
+          <p className="text-red-500 font-medium mb-2">{error}</p>
+          <p className="text-gray-600 text-sm">{t('map.keyHint')}</p>
         </div>
       </div>
     );

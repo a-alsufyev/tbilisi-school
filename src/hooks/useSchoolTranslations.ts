@@ -1,24 +1,18 @@
-import { useState, useEffect } from 'react';
-import { School } from '../types';
-import { translateSchoolNames } from '../services/geminiService';
+import { School } from "../types";
+import { normalizeUiLanguage } from "../lib/schools";
 
-export function useSchoolTranslations(schools: School[], currentLang: string) {
-  const [translations, setTranslations] = useState<Record<string, string>>({});
-  const [isTranslating, setIsTranslating] = useState(false);
+export function primarySchoolName(school: School): string {
+  const locale = school.nameLocale ?? "en";
+  return school.names?.[locale]?.trim() || school.name;
+}
 
-  useEffect(() => {
-    const fetchTranslations = async () => {
-      if (schools.length === 0) return;
-      
-      setIsTranslating(true);
-      const names = schools.map(s => s.name);
-      const result = await translateSchoolNames(names, currentLang);
-      setTranslations(prev => ({ ...prev, ...result }));
-      setIsTranslating(false);
-    };
+export function localeSchoolName(school: School, currentLang: string): string {
+  const local = school.names?.[normalizeUiLanguage(currentLang)]?.trim() ?? "";
+  if (!local || local === primarySchoolName(school)) return "";
+  return local;
+}
 
-    fetchTranslations();
-  }, [schools, currentLang]);
-
-  return { translations, isTranslating };
+export function localizedSchoolName(school: School, currentLang: string): string {
+  const lang = normalizeUiLanguage(currentLang);
+  return school.names?.[lang] || school.names?.en || school.names?.ru || school.name;
 }

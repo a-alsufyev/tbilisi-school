@@ -9,24 +9,24 @@ const Directory: React.FC = () => {
   const sections = [
     {
       icon: <GraduationCap className="w-6 h-6 text-indigo-600" />,
-      title: 'Types of Schools',
-      description: 'Public, private, and international schools with different curricula.'
+      titleKey: 'directory.topics.typesTitle',
+      descriptionKey: 'directory.topics.typesContent',
     },
     {
       icon: <Languages className="w-6 h-6 text-emerald-600" />,
-      title: 'Languages',
-      description: 'Instruction in Georgian, English, Russian, German, and more.'
+      titleKey: 'directory.topics.languagesTitle',
+      descriptionKey: 'directory.topics.languagesContent',
     },
     {
       icon: <ClipboardCheck className="w-6 h-6 text-amber-600" />,
-      title: 'Admission',
-      description: 'Required documents and typical enrollment periods.'
+      titleKey: 'directory.topics.admissionTitle',
+      descriptionKey: 'directory.topics.admissionContent',
     },
     {
       icon: <BookOpen className="w-6 h-6 text-rose-600" />,
-      title: 'Curricula',
-      description: 'IB, British (A-Level/GCSE), American, and National programs.'
-    }
+      titleKey: 'directory.topics.curriculaTitle',
+      descriptionKey: 'directory.topics.curriculaContent',
+    },
   ];
 
   const curriculaKeys = ['ib', 'british', 'american', 'finnish', 'progressive', 'hybrid'];
@@ -50,8 +50,8 @@ const Directory: React.FC = () => {
             {sections.map((section, index) => (
               <div key={index} className="p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-indigo-100 transition-all">
                 <div className="mb-4">{section.icon}</div>
-                <h3 className="font-bold text-gray-900 mb-1">{section.title}</h3>
-                <p className="text-sm text-gray-500">{section.description}</p>
+                <h3 className="font-bold text-gray-900 mb-1">{t(section.titleKey)}</h3>
+                <p className="text-sm text-gray-500">{t(section.descriptionKey)}</p>
               </div>
             ))}
           </div>
