@@ -25,7 +25,7 @@ export default function LangLayout({ schools, config, loadError }: LangLayoutPro
 
   if (!isSupportedUiLang(lang)) {
     const rest = location.pathname.replace(/^\/[^/]+/, "") || "";
-    return <Navigate to={`/en${rest}${location.search}`} replace />;
+    return <Navigate to={`/en${rest}${location.search}`} replace state={location.state} />;
   }
 
   return (

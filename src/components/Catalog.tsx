@@ -1,13 +1,14 @@
 import React from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { School } from "../types";
 import { ArrowLeft, MapPin, Languages, CreditCard, BookOpen, MessageSquare, Loader2, Globe } from "lucide-react";
 import { externalHref } from "../lib/website";
 import { localeSchoolName, primarySchoolName } from "../hooks/useSchoolTranslations";
-import { costStatusOf } from "../lib/cost";
-import { normalizeUiLanguage } from "../lib/schools";
+import { formatInstructionLanguagesLabel } from "../admin/languages";
+import { costStatusOf, formatCostAmount, formatCostStatusText } from "../lib/cost";
+import { normalizeUiLanguage, schoolReturnTo } from "../lib/schools";
 import MapView from "./Map";
 
 interface CatalogProps {
@@ -18,9 +19,22 @@ interface CatalogProps {
 
 const Catalog: React.FC<CatalogProps> = ({ schools, apiKey, selectedSchool }) => {
   const { t, i18n } = useTranslation();
+  const languageLabel = (value: string) => formatInstructionLanguagesLabel(value, t("map.bilingual"));
+  const costPhrase = (school: School) =>
+    formatCostStatusText(
+      school,
+      {
+        official: t("catalog.costOfficial"),
+        approximate: t("catalog.costApproximate"),
+        unknown: t("catalog.costUnknown"),
+      },
+      (status, year) => t("catalog.costStatusYear", { status, year })
+    );
+  const periodLabels = { month: t("catalog.perMonth"), year: t("catalog.perYear") };
+  const boundLabels = { from: t("catalog.costFrom"), to: t("catalog.costTo") };
+  const costAmount = (school: School) => formatCostAmount(school, periodLabels, boundLabels);
   const { lang } = useParams();
   const location = useLocation();
-  const navigate = useNavigate();
   const [description, setDescription] = React.useState<string | null>(null);
   const [isLoadingDescription, setIsLoadingDescription] = React.useState(false);
   const prefix = `/${lang ?? "en"}`;
@@ -54,13 +68,15 @@ const Catalog: React.FC<CatalogProps> = ({ schools, apiKey, selectedSchool }) =>
   const getPrimaryName = (school: School) => primarySchoolName(school);
   const getLocaleName = (school: School) => localeSchoolName(school, i18n.language);
 
-  const handleBack = () => {
-    if (location.key !== "default") {
-      navigate(-1);
-    } else {
-      navigate(`${prefix}/schools`);
-    }
-  };
+  const returnTo = schoolReturnTo(location.search);
+  const backHref =
+    returnTo === "map" ? prefix : returnTo === "assistant" ? `${prefix}/assistant` : `${prefix}/schools`;
+  const backLabel =
+    returnTo === "map"
+      ? t("catalog.backMap")
+      : returnTo === "assistant"
+        ? t("catalog.backAssistant")
+        : t("catalog.backCatalog");
 
   if (selectedSchool) {
     const primaryName = getPrimaryName(selectedSchool);
@@ -74,14 +90,13 @@ const Catalog: React.FC<CatalogProps> = ({ schools, apiKey, selectedSchool }) =>
           className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden"
         >
           <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={handleBack}
+            <Link
+              to={backHref}
               className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              {t("catalog.back")}
-            </button>
+              {backLabel}
+            </Link>
             {isLoadingDescription && (
               <div className="flex items-center gap-2 text-gray-400 text-xs italic">
                 <Loader2 className="w-3 h-3 animate-spin" />
@@ -155,7 +170,7 @@ const Catalog: React.FC<CatalogProps> = ({ schools, apiKey, selectedSchool }) =>
                     <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
                       {t("map.languages")}
                     </h4>
-                    <p className="text-lg text-gray-900">{selectedSchool.languages}</p>
+                    <p className="text-lg text-gray-900">{languageLabel(selectedSchool.languages) || "—"}</p>
                   </div>
                 </div>
 
@@ -171,14 +186,8 @@ const Catalog: React.FC<CatalogProps> = ({ schools, apiKey, selectedSchool }) =>
                       <p className="text-lg text-gray-900">{t("catalog.costUnknown")}</p>
                     ) : (
                       <>
-                        <p className="text-lg text-gray-900">{selectedSchool.cost || "—"}</p>
-                        <p className="text-sm text-gray-500">
-                          {t(
-                            costStatusOf(selectedSchool) === "official"
-                              ? "catalog.costOfficial"
-                              : "catalog.costApproximate"
-                          )}
-                        </p>
+                        <p className="text-lg text-gray-900">{costAmount(selectedSchool) || "—"}</p>
+                        <p className="text-sm text-gray-500">{costPhrase(selectedSchool)}</p>
                       </>
                     )}
                   </div>
@@ -233,7 +242,7 @@ const Catalog: React.FC<CatalogProps> = ({ schools, apiKey, selectedSchool }) =>
                 whileHover={{ y: -4 }}
               >
                 <Link
-                  to={`${prefix}/schools/${school.slug}`}
+                  to={`${prefix}/schools/${school.slug}?from=catalog`}
                   className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 cursor-pointer hover:shadow-md transition-all group block h-full"
                 >
                   <div className="mb-4">
@@ -252,16 +261,16 @@ const Catalog: React.FC<CatalogProps> = ({ schools, apiKey, selectedSchool }) =>
                     </div>
                     <div className="flex items-center gap-2 text-gray-500 text-sm">
                       <Languages className="w-4 h-4 flex-shrink-0" />
-                      <span>{school.languages}</span>
+                      <span>{languageLabel(school.languages) || "—"}</span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-500 text-sm">
                       <CreditCard className="w-4 h-4 flex-shrink-0" />
                       <span>
                         {costStatusOf(school) === "unknown"
                           ? t("catalog.costUnknown")
-                          : school.cost
-                            ? `${school.cost} · ${t(costStatusOf(school) === "official" ? "catalog.costOfficial" : "catalog.costApproximate")}`
-                            : t(costStatusOf(school) === "official" ? "catalog.costOfficial" : "catalog.costApproximate")}
+                          : costAmount(school)
+                            ? `${costAmount(school)} · ${costPhrase(school)}`
+                            : costPhrase(school)}
                       </span>
                     </div>
                   </div>

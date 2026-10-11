@@ -218,7 +218,7 @@ Docker Desktop не ставим. `Dockerfile` / `docker-compose.yml` в реп�
 
 Начинать после закрытия L0–L5. На сервере уже Ubuntu и Docker.
 
-Файлы `Dockerfile`, `docker-compose.yml`, `.dockerignore` уже в репозитории (сделаны заранее). Здесь — проверка и выкладка.
+Файлы `Dockerfile`, `docker-compose.yml`, `.dockerignore` и `deploy/restore.sh` уже в репозитории. Здесь — проверка и выкладка.
 
 ---
 
@@ -226,35 +226,40 @@ Docker Desktop не ставим. `Dockerfile` / `docker-compose.yml` в реп�
 
 ### Чек-лист
 
-- [ ] Репозиторий на VPS, `.env` на сервере (пароли и ключ Яндекса, `DATABASE_URL` с хостом `db` задаёт compose)
+- [ ] Репозиторий на VPS, `.env` на сервере (пароли и ключ Яндекса, `DATABASE_URL` с хостом `db` задаёт compose). Пароль Postgres без `@`, `:`, `/` и пробелов
+- [ ] `deploy/tbilisi.dump` лежит на сервере до первого `up` (в git его нет)
 - [ ] `docker compose config` валиден
-- [ ] `docker compose up db -d` — Postgres healthy
-- [ ] `docker build .` — `.env` не попал в образ
+- [ ] `docker compose up db -d` — Postgres healthy, дамп восстановлен
+- [ ] Порт 5432 на хост не проброшен
+- [ ] `docker build .` — `.env` и дамп не попали в образ
 - [ ] Healthcheck `GET /health` в Dockerfile / compose
-- [ ] Образ копирует миграции и `data/` для сида
+- [ ] Образ копирует миграции и `data/`; первый volume заполняет restore, не сид
 - [ ] `app` зависит от `db` (`service_healthy`), порт 3000
+- [ ] `deploy/restore.sh` смонтирован в `/docker-entrypoint-initdb.d`
 
 ### Тест-кейсы
 
 | ID | Шаги | Ожидание |
 |---|---|---|
-| TV1.1 | `docker compose up db -d` | `db` healthy |
+| TV1.1 | Дамп на месте, чистый volume, `docker compose up db -d` | `db` healthy, в `schools` строки из дампа |
 | TV1.2 | `docker compose exec db pg_isready -U tbilisi -d tbilisi` | `accepting connections` |
-| TV1.3 | `docker compose restart db` | Снова healthy, volume жив |
-| TV1.4 | `docker compose config` | Валидный YAML |
-| TV1.5 | `docker build .` затем проверить, что в образе нет `.env` | Сборка ок, секретов нет |
+| TV1.3 | `docker compose restart db` | Снова healthy, volume жив, дамп второй раз не накатывается |
+| TV1.4 | `docker compose config` | Валидный YAML, порта `5432:5432` нет |
+| TV1.5 | `docker build .` затем проверить, что в образе нет `.env` и `tbilisi.dump` | Сборка ок, секретов и дампа нет |
+| TV1.6 | Убрать дамп, чистый volume, `docker compose up db -d` | `db` не становится healthy, приложение не сидит CSV |
 
 **Готово, когда:** на VPS поднимается healthy Postgres, образ собирается без секретов.
 
 ---
 
-## V2. Приложение в Compose, сид, прогон API и UI
+## V2. Приложение в Compose, восстановление дампа, прогон API и UI
 
 ### Чек-лист
 
 - [ ] `docker compose up --build -d` — app + db
-- [ ] Пустая БД засиживается сама (17 школ)
-- [ ] Повторный `up` не плодит дубли
+- [ ] Первый пустой volume восстанавливается из дампа; число школ и визитов как в локальной базе
+- [ ] Повторный `up` не перезаписывает данные и не плодит дубли
+- [ ] Сид из CSV не подменяет восстановленную базу
 - [ ] Сайт открывается с VPS (порт 3000 или как пробросите)
 - [ ] Выборочно повторить локальные сценарии: список школ, карточка по slug, визиты, URL языка
 
@@ -262,8 +267,8 @@ Docker Desktop не ставим. `Dockerfile` / `docker-compose.yml` в реп�
 
 | ID | Шаги | Ожидание |
 |---|---|---|
-| TV2.1 | Чистый volume, `docker compose up --build -d` | 17 школ, 4 локали |
-| TV2.2 | Повторный `up` без удаления volume | Снова 17 |
+| TV2.1 | Чистый volume, дамп на месте, `docker compose up --build -d` | Число школ и визитов совпадает с локальной базой, не с сидом CSV |
+| TV2.2 | Повторный `up` без удаления volume | Те же строки, дамп не применяется второй раз |
 | TV2.3 | `GET /api/schools` с сервера | Как TL2.3 |
 | TV2.4 | `GET /api/schools/newton-free-school/description` | 200 |
 | TV2.5 | Два `POST /api/visits`, `docker compose restart app` | `total` не сбросился |
@@ -305,5 +310,5 @@ Docker Desktop не ставим. `Dockerfile` / `docker-compose.yml` в реп�
 | L4 Вычистка файлов | локально | сделано |
 | L5 Документация | локально | сделано |
 | V1 Compose на сервере | VPS | не начат |
-| V2 App + сид на сервере | VPS | не начат |
+| V2 App + дамп на сервере | VPS | не начат |
 | V3 Документация выкладки | VPS | не начат |

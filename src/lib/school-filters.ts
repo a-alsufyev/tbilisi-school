@@ -8,8 +8,9 @@ import {
   type DistrictId,
   type DistrictLabels,
 } from "./districts";
-import { costStatusOf } from "./cost";
-import type { School } from "../types";
+import { costBoundOf, costCurrencyOf, costPeriodOf, costStatusOf } from "./cost";
+import type { GelPerCurrency } from "./exchange-rates";
+import type { CostCurrency, School } from "../types";
 
 export type PriceCurrency = "USD" | "EUR" | "GEL";
 export type PricePeriod = "year" | "month";
@@ -43,22 +44,6 @@ export type SchoolSearchResult = {
   area: AreaMatch | null;
 };
 
-type ParsedCost = {
-  min: number;
-  max: number;
-  currency: PriceCurrency;
-  period: PricePeriod;
-};
-
-const CURRENCIES: { pattern: RegExp; currency: PriceCurrency }[] = [
-  { pattern: /usd|\$|dollar/i, currency: "USD" },
-  { pattern: /eur|€/i, currency: "EUR" },
-  { pattern: /gel|lari|ლარი/i, currency: "GEL" },
-];
-
-const MONTHLY =
-  /(\/\s*mon(th)?)|(\/\s*мес)|(\bмес\b)|თვ|monthly|per month|в месяц/i;
-
 const PROGRAM_GROUPS: { keys: string[]; pattern: RegExp }[] = [
   { keys: ["ib"], pattern: /\bib\b/i },
   { keys: ["british", "uk", "британ", "britisch"], pattern: /british|британ|britisch/i },
@@ -71,6 +56,7 @@ const PROGRAM_GROUPS: { keys: string[]; pattern: RegExp }[] = [
   { keys: ["finnish", "финск", "finnisch"], pattern: /финск|finnish|finnisch/i },
   { keys: ["private", "частн", "privat"], pattern: /частн|private|privat/i },
   { keys: ["alternative", "альтернатив"], pattern: /alternative|альтернатив/i },
+  { keys: ["cambridge", "кембридж"], pattern: /cambridge|кембридж/i },
 ];
 
 export function parseCoordinates(value: string): { lat: number; lng: number } | null {
@@ -88,41 +74,42 @@ export function attachDistrict(school: School): AssistantSchool {
   return { ...school, district: point ? districtAt(point.lat, point.lng) : null };
 }
 
-export function parseCost(raw: string | undefined): ParsedCost | null {
-  if (!raw) return null;
-  const text = raw.trim();
-  if (!text) return null;
-  const currency = CURRENCIES.find((item) => item.pattern.test(text))?.currency;
-  if (!currency) return null;
-  const amounts = [...text.matchAll(/\d+(?:[.,]\d+)?/g)]
-    .map((item) => Number(item[0].replace(",", ".")))
-    .filter((amount) => Number.isFinite(amount) && amount > 0);
-  if (amounts.length === 0) return null;
-  return {
-    min: Math.min(...amounts),
-    max: Math.max(...amounts),
-    currency,
-    period: MONTHLY.test(text) ? "month" : "year",
-  };
-}
-
 function annual(amount: number, period: PricePeriod): number {
   return period === "month" ? amount * 10 : amount;
 }
 
+function yearlyInCurrency(
+  amount: number,
+  from: CostCurrency,
+  period: PricePeriod,
+  to: CostCurrency,
+  rates: GelPerCurrency | null
+): number | null {
+  const yearly = annual(amount, period);
+  if (from === to) return yearly;
+  if (!rates) return null;
+  return (yearly * rates[from]) / rates[to];
+}
+
 export function priceFit(
-  cost: string | undefined,
+  school: School,
   minPrice?: PriceConstraint,
-  maxPrice?: PriceConstraint
+  maxPrice?: PriceConstraint,
+  rates: GelPerCurrency | null = null
 ): "match" | "miss" | "uncertain" {
   if (!minPrice && !maxPrice) return "match";
-  const parsed = parseCost(cost);
-  if (!parsed) return "uncertain";
+  if (costStatusOf(school) === "unknown") return "uncertain";
+  const currency = costCurrencyOf(school);
+  const low = costBoundOf(school, "min");
+  const high = costBoundOf(school, "max");
+  if (!currency || (low == null && high == null)) return "uncertain";
   const currencies = [minPrice?.currency, maxPrice?.currency].filter(Boolean);
   if (new Set(currencies).size > 1) return "uncertain";
-  if (parsed.currency !== currencies[0]) return "uncertain";
-  const schoolMin = annual(parsed.min, parsed.period);
-  const schoolMax = annual(parsed.max, parsed.period);
+  const target = (minPrice?.currency ?? maxPrice?.currency) as CostCurrency;
+  const period = costPeriodOf(school) ?? "year";
+  const schoolMin = yearlyInCurrency(low ?? (high as number), currency, period, target, rates);
+  const schoolMax = yearlyInCurrency(high ?? (low as number), currency, period, target, rates);
+  if (schoolMin == null || schoolMax == null) return "uncertain";
   if (maxPrice && schoolMax > annual(maxPrice.amount, maxPrice.period)) return "miss";
   if (minPrice && schoolMin < annual(minPrice.amount, minPrice.period)) return "miss";
   return "match";
@@ -173,7 +160,11 @@ export function districtLabels(id: DistrictId): DistrictLabels {
   return DISTRICT_LABELS[id];
 }
 
-export function searchSchools(schools: School[], filters: SchoolSearchFilters): SchoolSearchResult {
+export function searchSchools(
+  schools: School[],
+  filters: SchoolSearchFilters,
+  rates: GelPerCurrency | null = null
+): SchoolSearchResult {
   const languages = wantedLanguages(filters.languages);
   const program = filters.program?.trim() ?? "";
   const districtRaw = filters.district?.trim() ?? "";
@@ -206,7 +197,7 @@ export function searchSchools(schools: School[], filters: SchoolSearchFilters): 
     }
     if (program && !programMatches(school.program, program)) continue;
 
-    const fit = priceFit(costStatusOf(school) === "unknown" ? undefined : school.cost, filters.minPrice, filters.maxPrice);
+    const fit = priceFit(school, filters.minPrice, filters.maxPrice, rates);
     if (fit === "miss") continue;
 
     if (districtIds) {

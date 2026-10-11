@@ -1,5 +1,5 @@
 import { eq, sql } from "drizzle-orm";
-import { isCostStatus } from "../lib/cost";
+import { costBoundOf, costCurrencyOf, costPeriodOf, costYearOf, isCostStatus } from "../lib/cost";
 import { isSupportedUiLang } from "../lib/schools";
 import { db } from "./index";
 import { schools, schoolTranslations, siteStats } from "./schema";
@@ -33,8 +33,12 @@ export async function listSchools(): Promise<School[]> {
       coordinates,
       languages: row.languages,
       website: row.website ?? undefined,
-      cost: row.cost ?? undefined,
-      costStatus: isCostStatus(row.costStatus) ? row.costStatus : row.cost ? "approximate" : "unknown",
+      costStatus: isCostStatus(row.costStatus) ? row.costStatus : costBoundOf(row, "min") || costBoundOf(row, "max") ? "approximate" : "unknown",
+      costMin: costBoundOf(row, "min"),
+      costMax: costBoundOf(row, "max"),
+      costCurrency: costCurrencyOf(row),
+      costYear: costYearOf(row),
+      costPeriod: costPeriodOf(row),
       program: row.program ?? undefined,
     };
   });

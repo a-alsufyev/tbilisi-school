@@ -1,7 +1,7 @@
-import { isCostStatus } from "../lib/cost";
+import { isCostCurrency, isCostPeriod, isCostStatus, isCostYear } from "../lib/cost";
 import { isSafeSchoolIdentifier } from "../lib/schools";
 import { externalHref } from "../lib/website";
-import { formatInstructionLanguages, parseInstructionLanguages } from "./languages";
+import { normalizeInstructionLanguages } from "./languages";
 import {
   ADMIN_LOCALES,
   blankTranslations,
@@ -25,20 +25,51 @@ export function validateSchoolInput(
   if (!address) fields.address = "Укажите адрес";
 
   const languageSource = Array.isArray(source.languages)
-    ? source.languages.filter((item): item is string => typeof item === "string").join("/")
+    ? source.languages.filter((item): item is string => typeof item === "string").join(", ")
     : typeof source.languages === "string"
       ? source.languages
       : "";
-  const languages = formatInstructionLanguages(parseInstructionLanguages(languageSource));
+  const languages = normalizeInstructionLanguages(languageSource);
 
   const websiteRaw = typeof source.website === "string" ? source.website.trim() : "";
   const website = websiteRaw ? externalHref(websiteRaw) : null;
   if (websiteRaw && !website) fields.website = "Укажите адрес сайта, например school.ge";
 
-  const costText = typeof source.cost === "string" ? source.cost.trim() : "";
   const rawCostStatus = typeof source.costStatus === "string" ? source.costStatus : "";
-  const costStatus = isCostStatus(rawCostStatus) ? rawCostStatus : costText ? "approximate" : "unknown";
-  const cost = costStatus === "unknown" ? "" : costText;
+  const costStatus = isCostStatus(rawCostStatus) ? rawCostStatus : "unknown";
+  const readAmount = (value: unknown): number | null => {
+    if (value === null || value === undefined || value === "") return null;
+    const amount = typeof value === "number" ? value : Number(String(value).replace(",", "."));
+    return Number.isFinite(amount) ? amount : Number.NaN;
+  };
+  let costMin = costStatus === "unknown" ? null : readAmount(source.costMin);
+  let costMax = costStatus === "unknown" ? null : readAmount(source.costMax);
+  if (costMin != null && (Number.isNaN(costMin) || costMin <= 0)) {
+    fields.cost = "Укажите сумму больше нуля";
+    costMin = null;
+  }
+  if (!fields.cost && costMax != null && (Number.isNaN(costMax) || costMax <= 0)) {
+    fields.cost = "Укажите сумму больше нуля";
+    costMax = null;
+  }
+  if (!fields.cost && costMin != null && costMax != null && costMin > costMax) {
+    fields.cost = "«От» не может быть больше «До»";
+  }
+  const rawCurrency = typeof source.costCurrency === "string" ? source.costCurrency : "";
+  let costCurrency = costStatus !== "unknown" && isCostCurrency(rawCurrency) ? rawCurrency : null;
+  if (!fields.cost && costStatus !== "unknown" && (costMin != null || costMax != null) && !costCurrency) {
+    fields.cost = "Выберите валюту";
+  }
+  if (costMin == null && costMax == null) costCurrency = null;
+  const rawCostYear = source.costYear;
+  let costYear: number | null = null;
+  if (costStatus !== "unknown" && rawCostYear !== null && rawCostYear !== undefined && rawCostYear !== "") {
+    const year = typeof rawCostYear === "number" ? rawCostYear : Number(rawCostYear);
+    if (!isCostYear(year)) fields.costYear = "Выберите год, начиная с 2022";
+    else costYear = year;
+  }
+  const rawCostPeriod = typeof source.costPeriod === "string" ? source.costPeriod : "";
+  const costPeriod = costStatus !== "unknown" && isCostPeriod(rawCostPeriod) ? rawCostPeriod : null;
   const program = typeof source.program === "string" ? source.program.trim() : "";
 
   const translations = blankTranslations();
@@ -71,8 +102,12 @@ export function validateSchoolInput(
       address,
       languages,
       website,
-      cost: cost || null,
       costStatus,
+      costMin,
+      costMax,
+      costCurrency,
+      costYear,
+      costPeriod,
       program: program || null,
       nameLocale,
       translations,

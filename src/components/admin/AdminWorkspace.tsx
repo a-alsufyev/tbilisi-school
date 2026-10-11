@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatInstructionLanguagesLabel } from "../../admin/languages";
 import { ADMIN_LOCALES, schoolLabel, type AdminSchool } from "../../admin/types";
 import SchoolForm from "./SchoolForm";
 
@@ -125,7 +126,12 @@ export default function AdminWorkspace({ onLogout }: AdminWorkspaceProps) {
                   }`}
                 >
                   <span className="block text-sm font-medium truncate">{schoolLabel(school)}</span>
-                  <span className="block text-xs text-gray-500 truncate">{school.slug}</span>
+                  <span className="block text-xs text-gray-500 truncate">
+                    {school.slug}
+                    {school.languages
+                      ? ` · ${formatInstructionLanguagesLabel(school.languages, "билингв.")}`
+                      : ""}
+                  </span>
                 </button>
               );
             })}

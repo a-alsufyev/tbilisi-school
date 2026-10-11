@@ -1,4 +1,6 @@
 export type CostStatus = "official" | "approximate" | "unknown";
+export type CostPeriod = "month" | "year";
+export type CostCurrency = "USD" | "EUR" | "GEL";
 
 export interface SchoolNames {
   en: string;
@@ -17,8 +19,12 @@ export interface School {
   coordinates: string;
   languages: string;
   website?: string;
-  cost?: string;
   costStatus: CostStatus;
+  costMin: number | null;
+  costMax: number | null;
+  costCurrency: CostCurrency | null;
+  costYear: number | null;
+  costPeriod: CostPeriod | null;
   program?: string;
   comment?: string;
   district?: string | null;

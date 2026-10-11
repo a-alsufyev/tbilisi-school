@@ -27,7 +27,7 @@ export default function Header() {
   const currentLang = isSupportedUiLang(lang) ? lang : "en";
 
   const changeLanguage = (next: UiLang) => {
-    navigate(replaceLangPrefix(location.pathname, next) + location.search);
+    navigate(replaceLangPrefix(location.pathname, next) + location.search, { state: location.state });
   };
 
   return (

@@ -1,4 +1,4 @@
-import { isCostStatus } from "./cost";
+import { costCurrencyOf, costPeriodOf, costYearOf, isCostStatus } from "./cost";
 import { isSupportedUiLang } from "./schools";
 import type { School } from "../types";
 
@@ -28,7 +28,9 @@ function asSchool(value: unknown): School | null {
   const names = row.names && typeof row.names === "object" ? (row.names as Record<string, unknown>) : {};
   const rawLocale = typeof row.nameLocale === "string" ? row.nameLocale : "";
   const rawCostStatus = typeof row.costStatus === "string" ? row.costStatus : "";
-  const cost = typeof row.cost === "string" ? row.cost : undefined;
+  const costMin = typeof row.costMin === "number" ? row.costMin : null;
+  const costMax = typeof row.costMax === "number" ? row.costMax : null;
+  const rawCurrency = typeof row.costCurrency === "string" ? row.costCurrency : "";
   return {
     id: row.id,
     slug: row.slug,
@@ -44,8 +46,22 @@ function asSchool(value: unknown): School | null {
     coordinates: typeof row.coordinates === "string" ? row.coordinates : "",
     languages: typeof row.languages === "string" ? row.languages : "",
     website: typeof row.website === "string" ? row.website : undefined,
-    cost,
-    costStatus: isCostStatus(rawCostStatus) ? rawCostStatus : cost ? "approximate" : "unknown",
+    costStatus: isCostStatus(rawCostStatus) ? rawCostStatus : costMin || costMax ? "approximate" : "unknown",
+    costMin,
+    costMax,
+    costCurrency: costCurrencyOf({ costStatus: rawCostStatus, costMin, costMax, costCurrency: rawCurrency }),
+    costYear: costYearOf({
+      costStatus: rawCostStatus,
+      costMin,
+      costMax,
+      costYear: typeof row.costYear === "number" ? row.costYear : null,
+    }),
+    costPeriod: costPeriodOf({
+      costStatus: rawCostStatus,
+      costMin,
+      costMax,
+      costPeriod: typeof row.costPeriod === "string" ? row.costPeriod : null,
+    }),
     program: typeof row.program === "string" ? row.program : undefined,
     comment: typeof row.comment === "string" ? row.comment : undefined,
     district: typeof row.district === "string" ? row.district : row.district === null ? null : undefined,

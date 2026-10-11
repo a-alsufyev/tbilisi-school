@@ -24,7 +24,7 @@ export default function MapPage() {
         <MapView
           schools={schools}
           apiKey={config?.yandexMapsApiKey || ""}
-          onSchoolSelect={(school) => navigate(`/${lang}/schools/${school.slug}`)}
+          onSchoolSelect={(school) => navigate(`/${lang}/schools/${school.slug}?from=map`)}
         />
       </div>
     </div>

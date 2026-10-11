@@ -33,7 +33,7 @@ data/descriptions/*.txt
 data/school-names.json
 ```
 
-При старте: миграции → сид, если таблица школ пустая → listen.
+При старте приложения: миграции → сид, если таблица школ пустая → listen. На VPS перед этим пустой volume Postgres один раз восстанавливает дамп текущей базы.
 
 ## Стек
 
@@ -114,6 +114,8 @@ data/school-names.json
 | `src/i18n/index.ts` | Строки UI (не сид БД) |
 
 В БД пишется латинский URL-slug (`newton-free-school`, `northern-school`, `intellect-plus`). Повторный старт при непустой таблице строки не дублирует.
+
+На VPS этот сид не заполняет первую базу: init-скрипт Postgres сначала восстанавливает `deploy/tbilisi.dump`. Сид из CSV остаётся запасным путём и срабатывает только если приложение стартовало, таблица школ пустая, а restore уже не выполнялся.
 
 Парсер CSV: `src/db/parse-csv.ts`, вызывается только из `src/db/seed.ts`.
 
@@ -204,12 +206,50 @@ npm run db:seed
 
 ## VPS
 
-Файлы `Dockerfile` и `docker-compose.yml` уже в репозитории. Их гоняют **только на Ubuntu VPS**, после закрытия локальных этапов L0–L5. Локально Compose не используем.
+Файлы `Dockerfile`, `docker-compose.yml` и `deploy/restore.sh` гоняют **только на Ubuntu VPS**, после закрытия локальных этапов L0–L5. Локально Compose не используем.
 
-На сервере хост БД в `DATABASE_URL` — `db` (имя сервиса Compose), не `127.0.0.1`. Старт:
+Состав: `db` (`postgres:16-alpine`, volume `pgdata`) и `app`. Порт Postgres на хост не публикуется, снаружи его не открывать. Сайт слушает HTTP на порту 3000. `app` стартует после healthy `db`. В Compose `DATABASE_URL` указывает на хост `db` и перекрывает значение из `.env`.
 
-```bash
-docker compose up --build -d
+Пароль `POSTGRES_PASSWORD` не должен содержать `@`, `:`, `/` и пробелы: Compose подставляет его в `DATABASE_URL` как есть.
+
+### Что происходит при первом пустом volume
+
+Entrypoint Postgres один раз выполняет `deploy/restore.sh`. Скрипт восстанавливает `deploy/tbilisi.dump` (`pg_restore --no-owner --no-acl --exit-on-error`): схема, школы, переводы, визиты и журнал drizzle. Затем приложение прогоняет миграции (уже записанные в дампе не переигрываются), видит непустую таблицу школ и сид из CSV пропускает.
+
+Если дампа нет или `pg_restore` падает, скрипт очищает каталог данных и контейнер `db` завершается с ошибкой. Приложение не стартует и пустую базу из CSV не заполняет. Политика `restart` поднимает `db` снова; каталог пустой, поэтому init и restore выполняются ещё раз. Достаточно положить дамп на место.
+
+Повторный `docker compose up` дамп не применяет: скрипт инициализации Postgres работает только на пустом volume.
+
+### Дамп с текущей машины
+
+Клиент PostgreSQL 16 (та же major-версия, что образ). Имя базы, пользователь и пароль — из локального `.env`. Файл в git не входит.
+
+```powershell
+& "C:\Program Files\PostgreSQL\16\bin\pg_dump.exe" -h 127.0.0.1 -p 5432 -U tbilisi -d tbilisi -Fc --no-owner --no-acl -f deploy\tbilisi.dump
 ```
 
-Контейнер приложения: migrate → сид если пусто → listen, healthcheck `GET /health`. Подробности выкладки — этапы V1–V3 в [implementation-checklist.md](./implementation-checklist.md).
+Перед clone на VPS текущие исходники должны быть на GitHub. Дамп туда не класть: его копируют на сервер отдельно.
+
+### Первый запуск
+
+1. `git clone` репозитория и переход в каталог.
+2. `cp .env.example .env`. Заполнить пароль Postgres, `YANDEX_MAPS_API_KEY`, `ADMIN_PASSWORD`, длинный `SESSION_SECRET` и при необходимости `OPENAI_API_KEY`. `DATABASE_URL` в файле можно не менять.
+3. Скопировать дамп в `deploy/tbilisi.dump` до первого `up`.
+4. `docker compose up --build -d`.
+
+Проверка:
+
+```bash
+docker compose ps
+docker compose exec db psql -U tbilisi -d tbilisi -c "select count(*) from schools;"
+curl -fsS http://127.0.0.1:3000/health
+curl -fsS http://127.0.0.1:3000/api/schools
+```
+
+Оба сервиса healthy. Число школ и визитов совпадает с локальной базой, не с сидом CSV.
+
+Повторный деплой: `git pull`, затем `docker compose up --build -d`. Volume `pgdata` сохраняется.
+
+Если volume уже инициализировался без дампа и скрипт не смог очистить каталог, восстановление возможно только после `docker compose down -v`. Эта команда удаляет данные Postgres.
+
+Nginx, TLS и домен в эту выкладку не входят. В кабинете Яндекса ключ карты нужно ограничить адресом, с которого открывают сайт. Проверка по шагам — этапы V1–V3 в [implementation-checklist.md](./implementation-checklist.md).

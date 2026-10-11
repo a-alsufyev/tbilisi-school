@@ -11,3 +11,4 @@ coverage
 docs
 data/stats.json
 data/stats.test.json
+deploy/tbilisi.dump

@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useSyncExternalStore } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { BookOpen, CreditCard, Languages, Loader2, MapPin, Send, Trash2 } from "lucide-react";
+import { formatInstructionLanguagesLabel } from "../admin/languages";
 import { primarySchoolName } from "../hooks/useSchoolTranslations";
 import { clearDialogue, getDialogue, sendDialogueMessage, setDialogueDraft, subscribeDialogue } from "../lib/assistant-session";
 import { formatSchoolCost } from "../lib/cost";
@@ -12,6 +13,7 @@ function SchoolCards({ schools }: { schools: School[] }) {
   const { t } = useTranslation();
   const { lang } = useParams();
   const prefix = `/${lang ?? "en"}`;
+  const languageLabel = (value: string) => formatInstructionLanguagesLabel(value, t("map.bilingual"));
   if (schools.length === 0) return null;
 
   return (
@@ -21,7 +23,7 @@ function SchoolCards({ schools }: { schools: School[] }) {
         return (
           <Link
             key={school.id}
-            to={`${prefix}/schools/${school.slug}`}
+            to={`${prefix}/schools/${school.slug}?from=assistant`}
             className="block h-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 transition-colors hover:border-indigo-300"
           >
             <h3 className="text-sm font-semibold leading-snug text-gray-900">{name}</h3>
@@ -34,7 +36,7 @@ function SchoolCards({ schools }: { schools: School[] }) {
               )}
               <p className="flex items-center gap-1.5">
                 <Languages className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                <span>{school.languages}</span>
+                <span>{languageLabel(school.languages) || "—"}</span>
               </p>
               <p className="flex items-center gap-1.5">
                 <BookOpen className="h-3.5 w-3.5 shrink-0 text-gray-400" />
@@ -43,11 +45,17 @@ function SchoolCards({ schools }: { schools: School[] }) {
               <p className="flex items-center gap-1.5">
                 <CreditCard className="h-3.5 w-3.5 shrink-0 text-gray-400" />
                 <span>
-                  {formatSchoolCost(school, {
-                    official: t("catalog.costOfficial"),
-                    approximate: t("catalog.costApproximate"),
-                    unknown: t("catalog.costUnknown"),
-                  })}
+                  {formatSchoolCost(
+                    school,
+                    {
+                      official: t("catalog.costOfficial"),
+                      approximate: t("catalog.costApproximate"),
+                      unknown: t("catalog.costUnknown"),
+                    },
+                    (status, year) => t("catalog.costStatusYear", { status, year }),
+                    { month: t("catalog.perMonth"), year: t("catalog.perYear") },
+                    { from: t("catalog.costFrom"), to: t("catalog.costTo") }
+                  )}
                 </span>
               </p>
             </div>
@@ -63,16 +71,25 @@ function ComparisonTable({ schools }: { schools: School[] }) {
   const { lang } = useParams();
   const prefix = `/${lang ?? "en"}`;
   const rows: { label: string; cell: (school: School) => string }[] = [
-    { label: t("map.languages"), cell: (school) => school.languages || "—" },
+    {
+      label: t("map.languages"),
+      cell: (school) => formatInstructionLanguagesLabel(school.languages, t("map.bilingual")) || "—",
+    },
     { label: t("catalog.program"), cell: (school) => school.program || "—" },
     {
       label: t("catalog.cost"),
       cell: (school) =>
-        formatSchoolCost(school, {
-          official: t("catalog.costOfficial"),
-          approximate: t("catalog.costApproximate"),
-          unknown: t("catalog.costUnknown"),
-        }),
+        formatSchoolCost(
+          school,
+          {
+            official: t("catalog.costOfficial"),
+            approximate: t("catalog.costApproximate"),
+            unknown: t("catalog.costUnknown"),
+          },
+          (status, year) => t("catalog.costStatusYear", { status, year }),
+          { month: t("catalog.perMonth"), year: t("catalog.perYear") },
+          { from: t("catalog.costFrom"), to: t("catalog.costTo") }
+        ),
     },
     {
       label: t("assistant.district"),
@@ -91,7 +108,10 @@ function ComparisonTable({ schools }: { schools: School[] }) {
             </th>
             {schools.map((school) => (
               <th key={school.id} className="min-w-40 bg-white px-3 py-2 align-bottom font-semibold text-gray-900">
-                <Link to={`${prefix}/schools/${school.slug}`} className="text-indigo-700 hover:underline">
+                <Link
+                  to={`${prefix}/schools/${school.slug}?from=assistant`}
+                  className="text-indigo-700 hover:underline"
+                >
                   {primarySchoolName(school)}
                 </Link>
               </th>

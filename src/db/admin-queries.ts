@@ -2,7 +2,7 @@ import { asc, eq, ne, and } from "drizzle-orm";
 import { suggestSlug } from "../admin/slug";
 import { ADMIN_LOCALES, blankTranslations, type AdminSchool, type AdminSchoolInput } from "../admin/types";
 import { isAdminLocale } from "../admin/validate";
-import { isCostStatus } from "../lib/cost";
+import { costBoundOf, costCurrencyOf, costPeriodOf, costYearOf, isCostStatus } from "../lib/cost";
 import { geocodeAddress } from "../lib/geocode";
 import { isSafeSchoolIdentifier } from "../lib/schools";
 import { db } from "./index";
@@ -22,8 +22,12 @@ function toAdminSchool(
     lng: row.lng,
     languages: row.languages,
     website: row.website,
-    cost: row.cost,
-    costStatus: isCostStatus(row.costStatus) ? row.costStatus : row.cost ? "approximate" : "unknown",
+    costStatus: isCostStatus(row.costStatus) ? row.costStatus : costBoundOf(row, "min") || costBoundOf(row, "max") ? "approximate" : "unknown",
+    costMin: costBoundOf(row, "min"),
+    costMax: costBoundOf(row, "max"),
+    costCurrency: costCurrencyOf(row),
+    costYear: costYearOf(row),
+    costPeriod: costPeriodOf(row),
     program: row.program,
     nameLocale: isAdminLocale(row.nameLocale) ? row.nameLocale : "en",
     translations,
@@ -112,8 +116,13 @@ export async function createAdminSchool(
         lng: coords?.lng ?? null,
         languages: input.languages,
         website: input.website,
-        cost: input.cost,
+        cost: null,
         costStatus: input.costStatus,
+        costMin: input.costMin,
+        costMax: input.costMax,
+        costCurrency: input.costCurrency,
+        costYear: input.costYear,
+        costPeriod: input.costPeriod,
         program: input.program,
         nameLocale: input.nameLocale,
       })
@@ -153,8 +162,13 @@ export async function updateAdminSchool(
         lng,
         languages: input.languages,
         website: input.website,
-        cost: input.cost,
+        cost: null,
         costStatus: input.costStatus,
+        costMin: input.costMin,
+        costMax: input.costMax,
+        costCurrency: input.costCurrency,
+        costYear: input.costYear,
+        costPeriod: input.costPeriod,
         program: input.program,
         nameLocale: input.nameLocale,
         updatedAt: new Date(),

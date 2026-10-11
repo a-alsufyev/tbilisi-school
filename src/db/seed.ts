@@ -3,6 +3,7 @@ import path from "path";
 import { count } from "drizzle-orm";
 import { db } from "./index";
 import { schools, schoolTranslations, siteStats } from "./schema";
+import { parseLegacyCost } from "../lib/cost";
 import { parseSchoolsCsv } from "./parse-csv";
 import { FILE_SLUG_TO_URL_SLUG, LOCALES } from "./slug-map";
 
@@ -14,6 +15,12 @@ function parseCoordinates(value: string): { lat: number | null; lng: number | nu
     return { lat: null, lng: null };
   }
   return { lat: parts[0], lng: parts[1] };
+}
+
+function structuredCost(raw: string | undefined) {
+  const parsed = parseLegacyCost(raw);
+  if (!parsed) return { costMin: null, costMax: null, costCurrency: null };
+  return { costMin: parsed.min, costMax: parsed.max, costCurrency: parsed.currency };
 }
 
 function readDescription(fileSlug: string, fallback: string): string {
@@ -67,7 +74,7 @@ export async function seedIfEmpty(): Promise<void> {
         lat,
         lng,
         languages: school.languages,
-        cost: school.cost || null,
+        ...structuredCost(school.cost),
         costStatus: school.cost ? "approximate" : "unknown",
         program: school.program || null,
         nameLocale: "en",

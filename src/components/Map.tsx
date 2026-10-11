@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { School } from '../types';
 import { localeSchoolName, primarySchoolName } from '../hooks/useSchoolTranslations';
+import { formatInstructionLanguagesLabel } from '../admin/languages';
 import { escapeHtml } from '../lib/escapeHtml';
 import { externalHref } from '../lib/website';
 
@@ -110,7 +111,7 @@ const MapView: React.FC<MapViewProps> = ({ schools, apiKey, height = 'calc(100vh
             balloonContentBody: `
               <div class="text-sm">
                 <p><strong>${escapeHtml(t('map.address'))}:</strong> ${escapeHtml(school.address)}</p>
-                <p><strong>${escapeHtml(t('map.languages'))}:</strong> ${escapeHtml(school.languages)}</p>
+                <p><strong>${escapeHtml(t('map.languages'))}:</strong> ${escapeHtml(formatInstructionLanguagesLabel(school.languages, t('map.bilingual')) || '—')}</p>
                 ${school.website && externalHref(school.website) ? `<p><strong>${escapeHtml(t('catalog.website'))}:</strong> <a href="${escapeHtml(externalHref(school.website) ?? "")}" target="_blank" rel="noopener noreferrer">${escapeHtml(school.website)}</a></p>` : ''}
               </div>
             `,

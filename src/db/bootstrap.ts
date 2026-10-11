@@ -1,3 +1,4 @@
+import { backfillStructuredCosts } from "./backfill-costs";
 import { runMigrations } from "./migrate";
 import { seedIfEmpty } from "./seed";
 
@@ -6,4 +7,5 @@ export async function prepareDatabase(): Promise<void> {
   await runMigrations();
   console.log("[DB] Seeding if empty...");
   await seedIfEmpty();
+  await backfillStructuredCosts();
 }

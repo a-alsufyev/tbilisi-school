@@ -1,6 +1,7 @@
-# VPS: docker compose up --build -d
+# VPS: put deploy/tbilisi.dump in place, then docker compose up --build -d
 # Local Windows (no Docker): install PostgreSQL 16, then npm run dev
-#   DATABASE_URL in .env must point to localhost, not to host `db`.
+#   DATABASE_URL in .env must point to 127.0.0.1, not to host `db`.
+# Postgres is only on the Compose network. Do not publish 5432.
 
 services:
   db:
@@ -11,8 +12,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+      - ./deploy/restore.sh:/docker-entrypoint-initdb.d/10-restore.sh:ro
+      - ./deploy:/dump:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s

@@ -1,4 +1,4 @@
-import type { CostStatus } from "../types";
+import type { CostCurrency, CostPeriod, CostStatus } from "../types";
 
 export const ADMIN_LOCALES = ["en", "ru", "ge", "de"] as const;
 export type AdminLocale = (typeof ADMIN_LOCALES)[number];
@@ -13,8 +13,12 @@ export type AdminSchoolInput = {
   address: string;
   languages: string;
   website: string | null;
-  cost: string | null;
   costStatus: CostStatus;
+  costMin: number | null;
+  costMax: number | null;
+  costCurrency: CostCurrency | null;
+  costYear: number | null;
+  costPeriod: CostPeriod | null;
   program: string | null;
   nameLocale: AdminLocale;
   translations: Record<AdminLocale, AdminTranslation>;
@@ -26,7 +30,7 @@ export type AdminSchool = AdminSchoolInput & {
   lng: number | null;
 };
 
-export type AdminField = "slug" | "address" | "names" | "website";
+export type AdminField = "slug" | "address" | "names" | "website" | "cost" | "costYear";
 export type AdminFieldErrors = Partial<Record<AdminField, string>>;
 
 export function blankTranslations(): Record<AdminLocale, AdminTranslation> {

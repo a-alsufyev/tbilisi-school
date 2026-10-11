@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
-import { parseInstructionLanguages, type InstructionLanguage } from "../../admin/languages";
-import type { CostStatus } from "../../types";
+import { normalizeInstructionLanguages } from "../../admin/languages";
+import { COST_CURRENCIES, costYearOptions } from "../../lib/cost";
+import type { CostCurrency, CostPeriod, CostStatus } from "../../types";
 import { suggestSlug } from "../../admin/slug";
 import {
   ADMIN_LOCALES,
@@ -35,12 +36,14 @@ export default function SchoolForm({
 }: SchoolFormProps) {
   const [slug, setSlug] = useState(school?.slug ?? "");
   const [address, setAddress] = useState(school?.address ?? "");
-  const [languages, setLanguages] = useState<InstructionLanguage[]>(
-    parseInstructionLanguages(school?.languages ?? "")
-  );
+  const [languages, setLanguages] = useState(normalizeInstructionLanguages(school?.languages ?? ""));
   const [website, setWebsite] = useState(school?.website ?? "");
-  const [cost, setCost] = useState(school?.cost ?? "");
+  const [costMin, setCostMin] = useState(school?.costMin != null ? String(school.costMin) : "");
+  const [costMax, setCostMax] = useState(school?.costMax != null ? String(school.costMax) : "");
+  const [costCurrency, setCostCurrency] = useState<CostCurrency | "">(school?.costCurrency ?? "");
   const [costStatus, setCostStatus] = useState<CostStatus>(school?.costStatus ?? "unknown");
+  const [costYear, setCostYear] = useState<number | null>(school?.costYear ?? null);
+  const [costPeriod, setCostPeriod] = useState<CostPeriod | null>(school?.costPeriod ?? null);
   const [program, setProgram] = useState(school?.program ?? "");
   const [translations, setTranslations] = useState(school?.translations ?? blankTranslations());
   const [nameLocale, setNameLocale] = useState<AdminLocale>(school?.nameLocale ?? "en");
@@ -72,8 +75,12 @@ export default function SchoolForm({
       address,
       languages,
       website,
-      cost,
+      costMin: costMin.trim() === "" ? null : costMin,
+      costMax: costMax.trim() === "" ? null : costMax,
+      costCurrency: costCurrency || null,
       costStatus,
+      costYear,
+      costPeriod,
       program,
       nameLocale,
       translations,
@@ -220,7 +227,9 @@ export default function SchoolForm({
 
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <p className="block text-sm font-medium text-gray-700 mb-1">Языки обучения</p>
+              <label htmlFor="school-languages" className="block text-sm font-medium text-gray-700 mb-1">
+                Языки обучения
+              </label>
               <LanguageSelect
                 value={languages}
                 onChange={(next) => {
@@ -253,16 +262,108 @@ export default function SchoolForm({
                   </label>
                 ))}
               </div>
-              <input
-                id="school-cost"
-                value={cost}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label htmlFor="school-cost-min" className="mb-1 block text-xs font-medium text-gray-500">
+                    От
+                  </label>
+                  <input
+                    id="school-cost-min"
+                    inputMode="decimal"
+                    value={costMin}
+                    disabled={costStatus === "unknown"}
+                    onChange={(event) => {
+                      setCostMin(event.target.value);
+                      touch();
+                    }}
+                    className={`${fieldClass} disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400`}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="school-cost-max" className="mb-1 block text-xs font-medium text-gray-500">
+                    До
+                  </label>
+                  <input
+                    id="school-cost-max"
+                    inputMode="decimal"
+                    value={costMax}
+                    disabled={costStatus === "unknown"}
+                    onChange={(event) => {
+                      setCostMax(event.target.value);
+                      touch();
+                    }}
+                    className={`${fieldClass} disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400`}
+                  />
+                </div>
+              </div>
+              <label htmlFor="school-cost-currency" className="mt-2 mb-1 block text-sm font-medium text-gray-700">
+                Валюта
+              </label>
+              <select
+                id="school-cost-currency"
+                value={costCurrency}
                 disabled={costStatus === "unknown"}
                 onChange={(event) => {
-                  setCost(event.target.value);
+                  const next = event.target.value;
+                  setCostCurrency(next === "USD" || next === "EUR" || next === "GEL" ? next : "");
                   touch();
                 }}
                 className={`${fieldClass} disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400`}
-              />
+              >
+                <option value="">Не выбрана</option>
+                {COST_CURRENCIES.map((code) => (
+                  <option key={code} value={code}>
+                    {code === "USD" ? "USD (доллары США)" : code === "EUR" ? "EUR (евро)" : "GEL (грузинские лари)"}
+                  </option>
+                ))}
+              </select>
+              {errors.cost && <p className="mt-1 text-sm text-red-600">{errors.cost}</p>}
+              <p className="mt-2 mb-1 text-sm font-medium text-gray-700">Период</p>
+              <div className="mb-2 flex flex-col gap-1">
+                {(
+                  [
+                    ["", "Не указан"],
+                    ["month", "В месяц"],
+                    ["year", "В год"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <label key={value || "unset"} className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="radio"
+                      name="school-cost-period"
+                      checked={(costPeriod ?? "") === value}
+                      disabled={costStatus === "unknown"}
+                      onChange={() => {
+                        setCostPeriod(value === "" ? null : value);
+                        touch();
+                      }}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              <label htmlFor="school-cost-year" className="mt-2 block text-sm font-medium text-gray-700 mb-1">
+                На какой год
+              </label>
+              <select
+                id="school-cost-year"
+                value={costYear ?? ""}
+                disabled={costStatus === "unknown"}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setCostYear(next ? Number(next) : null);
+                  touch();
+                }}
+                className={`${fieldClass} disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400`}
+              >
+                <option value="">Не указан</option>
+                {costYearOptions().map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+              {errors.costYear && <p className="mt-1 text-sm text-red-600">{errors.costYear}</p>}
             </div>
           </div>
 

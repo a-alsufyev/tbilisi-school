@@ -28,6 +28,14 @@ export function normalizeUiLanguage(lang: string): UiLang {
   return "en";
 }
 
+export type SchoolReturnTo = "catalog" | "map" | "assistant";
+
+export function schoolReturnTo(search: string): SchoolReturnTo {
+  const from = new URLSearchParams(search).get("from");
+  if (from === "map" || from === "assistant" || from === "catalog") return from;
+  return "catalog";
+}
+
 export function replaceLangPrefix(pathname: string, nextLang: UiLang): string {
   const rest = pathname.replace(/^\/[^/]+/, "");
   return `/${nextLang}${rest || ""}`;
