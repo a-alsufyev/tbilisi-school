@@ -6,7 +6,7 @@
 
 Подбор школ в диалоге идёт через OpenAI на сервере (`POST /api/assistant`). Ключ в браузер не отдаётся. Переводы интерфейса — в `src/i18n/index.ts`, имена школ — в таблице `school_translations`.
 
-Связанные документы: [change-plan.md](./change-plan.md), [implementation-checklist.md](./implementation-checklist.md), ассистент — [assistant.md](./assistant.md), заготовка авторизации — [schema-next.md](./schema-next.md).
+Связанные документы: [change-plan.md](./change-plan.md), [implementation-checklist.md](./implementation-checklist.md), выкладка на VPS — [production.md](./production.md), ассистент — [assistant.md](./assistant.md), заготовка авторизации — [schema-next.md](./schema-next.md).
 
 ## Общая схема
 
@@ -337,4 +337,4 @@ curl -fsS http://127.0.0.1:3000/api/schools
 
 Если volume уже инициализировался без дампа и скрипт не смог очистить каталог, восстановление возможно только после `docker compose down -v`. Эта команда удаляет данные Postgres.
 
-Nginx, TLS и домен в эту выкладку не входят. В кабинете Яндекса ключ карты нужно ограничить адресом, с которого открывают сайт. Проверка по шагам — этапы V1–V3 в [implementation-checklist.md](./implementation-checklist.md).
+Пошаговый перенос базы, обложек и секретов, а также nginx и сертификат на домене — в [production.md](./production.md). В кабинете Яндекса ключ карты нужно ограничить адресом, с которого открывают сайт. Проверка по шагам — этапы V1–V3 в [implementation-checklist.md](./implementation-checklist.md).
