@@ -1,5 +1,9 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import OpenAI, { APIError } from "openai";
 import { formatInstructionLanguagesLabel } from "../admin/languages";
+import { joinLookupLabels } from "./lookups";
 import { primarySchoolName } from "../hooks/useSchoolTranslations";
 import { costCurrencyOf, costPeriodOf, costStatusOf, costYearOf, formatCostFigures } from "./cost";
 import { loadExchangeRates, type ExchangeRates } from "./exchange-rates";
@@ -9,9 +13,10 @@ import {
   attachDistrict,
   compareSchools,
   districtLabels,
-  programMatches,
+  programsMatch,
   searchSchools,
   type AssistantSchool,
+  type SchoolSearchResult,
   type PriceConstraint,
   type PriceCurrency,
   type PricePeriod,
@@ -65,31 +70,16 @@ const FALLBACK: Record<UiLang, string> = {
   de: "Die Antwort konnte nicht formuliert werden. Bitte formulieren Sie die Frage anders.",
 };
 
-const SYSTEM_PROMPT = `You help people choose a school from a Tbilisi directory.
-Hard rule: use only the catalog. Every fact about a school — its name, languages, program, curriculum, price, year, period, address, district, and website — must come from a tool result or from the Shown schools lines in this chat. Do not use the model's own knowledge, training data, a school's reputation, or anything commonly said about a school with that name. Do not invent, guess, fill in, or embellish. If the catalog does not state a fact, say that it is not in the catalog.
-When the user asks to find, filter, narrow, or compare schools, call search_schools.
-Do not call it for greetings or questions about what you can do.
-Every argument you set is required together. On a follow-up, repeat constraints the user has not cancelled and add the new ones. A new place replaces the previous district or area; do not keep both.
-languages: include a code only when the school must teach in that language. English-language means ["EN"]; a school matches when that code is listed on its own or inside a bilingual pair. In results, languages can list several items at once, such as "RU, EN, bilingual RU/EN": a bare code is one language of instruction, and "bilingual RU/EN" is a bilingual program in that pair.
-program: a short curriculum keyword such as IB, British, American, national, German, Finnish, private, or alternative.
-district: one of saburtalo, vake, mtatsminda, krtsanisi, isani, samgori, chughureti, didube, nadzaladevi, gldani. Old Tbilisi is mtatsminda.
-area: north, south, center, west, east, rightBank, or leftBank when the user names a rough part of the city instead of one district. "на севере", "северная часть", and the typo "не севере" are north. Center is Mtatsminda and Chughureti, not Vake or Saburtalo. Never set district and area in the same call. Never answer that a compass direction is unmapped: call search_schools with area.
-Other misspellings are not guesses. If a curriculum, language, district, or school name looks misspelled, ask whether that is what the user meant and do not search until they confirm. When they confirm, search with the confirmed spelling.
-price: set minPrice and/or maxPrice only when the user states a budget. Use period "month" only if they said per month, otherwise "year". The search compares USD, EUR, and GEL with the National Bank of Georgia rate in exchangeRates. Do not invent a rate.
-After the tool result, reply in the language of the user's latest message. If that language is unclear, use the UI locale.
-A school has a curriculum only when that curriculum is written in its program field. Cambridge is not implied by the school name, by the word international, or by "intl" in "Национальная + intl". "Частная" is not an international program. When the user asks which shown schools have a curriculum, name every shown school whose program field matches and do not name the others.
-When schools is not empty, write a short summary of the whole set in two to four sentences. The interface already shows a card for every school, so do not name schools and do not use a numbered or bulleted list.
-In that summary, say how the set breaks down: schools that teach in one language versus bilingual pairs such as RU/EN and GE/EN, the spread of prices, and which programs appear. Quote each school price in its catalog currency. When exchangeRates is present and currencies differ, you may compare them with that National Bank of Georgia rate and mention the rate once. Do not restate a school's price in another currency.
-If the tool result includes area, say which districts were searched, listing every entry in area.districts even when some have no matching school. Those districts are inside the requested area. Schools in outsideDistrict lie outside the mapped polygons; do not describe area.districts as outside.
-costStatus is official, approximate, or unknown. costYear, when set, is the calendar year that price is for. costPeriod is month or year when the catalog says which one the price covers. unknown means the catalog has no price; do not invent one. When you mention prices, say whether they are official or approximate, mention the year when costYear is set, and say per month or per year when costPeriod is set.
-When the user asks to compare specific schools, call compare_schools instead of search_schools. Pass 2 to 4 names or slugs. Slugs from earlier "Shown school slugs" lines are valid. Never pass more than 4. If they ask to compare a longer list without naming which ones, ask them to choose up to 4. If 2 to 4 schools were shown and they say to compare those, pass their slugs.
-After compare_schools, write one or two sentences about the main differences. The interface renders the comparison table (languages, program, price, district, address, website), so do not draw a table and do not repeat every cell.
-If compare_schools reports missing names, say those schools were not found. If fewer than two schools matched, do not pretend a comparison happened.
-If priceUncertain is true for any school, say once that some catalog prices could not be compared strictly. Do not repeat it per school.
-If outsideDistrict is not empty, you may mention that some otherwise matching schools lie outside the mapped Tbilisi districts, without naming them as matches.
-If schools is empty, say nothing matched and suggest relaxing a condition.
-If the tool returns no_constraints, ask which language, curriculum, district, or budget matters. Do not list schools.
-If the tool returns unknown_district, say that place is not one of the ten mapped Tbilisi districts or a known area such as north, center, or a river bank.`;
+const promptDir = join(dirname(fileURLToPath(import.meta.url)), "../../prompt");
+const PARSE_PROMPT = readFileSync(join(promptDir, "parse.txt"), "utf8").trim();
+const REPLY_PROMPT = readFileSync(join(promptDir, "reply.txt"), "utf8").trim();
+
+function systemPrompt(prompt: string, locale: UiLang): OpenAI.ChatCompletionMessageParam {
+  return {
+    role: "system",
+    content: `${prompt}\nЯзык интерфейса: ${locale}. Это язык карточек и таблицы, не язык текста ответа.`,
+  };
+}
 
 const PRICE_SCHEMA = {
   type: "object",
@@ -107,7 +97,7 @@ const SEARCH_TOOL: OpenAI.ChatCompletionTool = {
   function: {
     name: "search_schools",
     description:
-      "Filter the catalog. Every field you set is required together. Omit a field the user did not constrain.",
+      "Отфильтровать каталог. Каждое заданное поле обязательно вместе с остальными. Не указывай поле, которое пользователь не ограничил.",
     parameters: {
       type: "object",
       additionalProperties: false,
@@ -115,12 +105,12 @@ const SEARCH_TOOL: OpenAI.ChatCompletionTool = {
         languages: {
           type: "array",
           items: { type: "string", enum: ["GE", "EN", "RU", "DE", "FR"] },
-          description: 'Languages the school must include. English-language schools are ["EN"].',
+          description: 'Языки, которые школа должна включать. Англоязычные школы — ["EN"].',
         },
         program: {
           type: "string",
           description:
-            "Curriculum keyword matched only against the catalog program field: IB, British, American, Cambridge, national, German, Finnish, private, alternative.",
+            "Ключевое слово учебной программы, которое сопоставляется с любой меткой программы в каталоге: IB, British, American, Cambridge, national, German, Finnish, private, alternative. Не ищет международный статус и аккредитацию.",
         },
         district: {
           type: "string",
@@ -136,16 +126,22 @@ const SEARCH_TOOL: OpenAI.ChatCompletionTool = {
             "nadzaladevi",
             "gldani",
           ],
-          description: "One Tbilisi district id. Saburtalo, Сабуртало, and საბურთალო are saburtalo. Old Tbilisi is mtatsminda.",
+          description: "Идентификатор одного района Тбилиси. Saburtalo, Сабуртало и საბურთალო — это saburtalo. Старый Тбилиси — mtatsminda.",
         },
         area: {
           type: "string",
           enum: ["north", "south", "center", "west", "east", "rightBank", "leftBank"],
           description:
-            "A rough part of the city, not a district. north: Gldani, Nadzaladevi, Didube. south: Krtsanisi. center: Mtatsminda and Chughureti. west: Vake and Saburtalo. east: Isani and Samgori. rightBank: Saburtalo, Vake, Mtatsminda, Didube, Nadzaladevi. leftBank: Chughureti, Isani, Samgori, Krtsanisi, Gldani.",
+            "Примерная часть города, не район. north: Глдани, Надзаладеви, Дидубе. south: Крцаниси. center: Мтацминда и Чугурети. west: Ваке и Сабуртало. east: Исани и Самгори. rightBank: Сабуртало, Ваке, Мтацминда, Дидубе, Надзаладеви. leftBank: Чугурети, Исани, Самгори, Крцаниси, Глдани.",
         },
         minPrice: PRICE_SCHEMA,
         maxPrice: PRICE_SCHEMA,
+        priceRank: {
+          type: "string",
+          enum: ["cheapest", "expensive"],
+          description:
+            "cheapest — самые дешёвые: треть школ с наименьшей нижней границей цены. expensive — самые дорогие: треть с наибольшей верхней границей. Не подставляй для этого сумму в minPrice или maxPrice.",
+        },
       },
     },
   },
@@ -155,7 +151,7 @@ const COMPARE_TOOL: OpenAI.ChatCompletionTool = {
   type: "function",
   function: {
     name: "compare_schools",
-    description: "Compare 2 to 4 catalog schools by their stored fields. Pass names or slugs.",
+    description: "Сравнить от 2 до 4 школ каталога по сохранённым полям. Передай названия или слаги.",
     parameters: {
       type: "object",
       additionalProperties: false,
@@ -165,7 +161,7 @@ const COMPARE_TOOL: OpenAI.ChatCompletionTool = {
           minItems: 2,
           maxItems: 4,
           items: { type: "string" },
-          description: "Two to four school names or slugs. Extra items are ignored.",
+          description: "От двух до четырёх названий или слагов школ. Лишние элементы игнорируются.",
         },
       },
       required: ["schools"],
@@ -216,6 +212,7 @@ export function parseToolFilters(raw: string): SchoolSearchFilters {
   const maxPrice = parsePrice(record.maxPrice);
   if (minPrice) filters.minPrice = minPrice;
   if (maxPrice) filters.maxPrice = maxPrice;
+  if (record.priceRank === "cheapest" || record.priceRank === "expensive") filters.priceRank = record.priceRank;
   return filters;
 }
 
@@ -230,6 +227,49 @@ function withoutDistrict(filters: SchoolSearchFilters): SchoolSearchFilters {
   const next = { ...filters };
   delete next.district;
   return next;
+}
+
+function priceRankFromUserText(text: string): SchoolSearchFilters["priceRank"] {
+  const patterns: { rank: NonNullable<SchoolSearchFilters["priceRank"]>; pattern: RegExp }[] = [
+    { rank: "cheapest", pattern: /сам\p{L}*\s+деш[её]|cheapest|most affordable|günstigsten|იაფ/giu },
+    { rank: "expensive", pattern: /сам\p{L}*\s+дорог|most expensive|teuersten|ძვირ/giu },
+  ];
+  let best: { rank: NonNullable<SchoolSearchFilters["priceRank"]>; index: number } | null = null;
+  for (const item of patterns) {
+    for (const match of text.matchAll(item.pattern)) {
+      const index = match.index ?? -1;
+      if (index >= 0 && (!best || index > best.index)) best = { rank: item.rank, index };
+    }
+  }
+  return best?.rank;
+}
+
+function applyPriceRank(filters: SchoolSearchFilters, text: string): SchoolSearchFilters {
+  const rank = priceRankFromUserText(text) ?? filters.priceRank;
+  if (!rank || filters.priceRank === rank) return filters;
+  return { ...filters, priceRank: rank };
+}
+
+function userAddsSearchConstraint(text: string): boolean {
+  if (resolveDistrictId(text) || resolveArea(text)) return true;
+  if (/\b(?:GE|EN|RU|DE|FR|IB)\b/.test(text)) return true;
+  if (/английск|русск|грузин|немец|француз|english|russian|georgian|german|french|ინგლის|რუსულ|ქართულ|british|британ|american|американ|cambridge|кембридж|националь|финск/i.test(text)) return true;
+  return /\d/.test(text);
+}
+
+function rankScope(
+  filters: SchoolSearchFilters,
+  text: string,
+  messages: AssistantTurn[],
+  schools: School[]
+): { filters: SchoolSearchFilters; schools: School[]; withinShown: boolean } {
+  if (!filters.priceRank || userAddsSearchConstraint(text)) return { filters, schools, withinShown: false };
+  const slugs = lastShownSlugs(messages);
+  if (slugs.length === 0) return { filters, schools, withinShown: false };
+  const allowed = new Set(slugs);
+  const shown = schools.filter((school) => allowed.has(school.slug));
+  if (shown.length === 0) return { filters, schools, withinShown: false };
+  return { filters: { priceRank: filters.priceRank }, schools: shown, withinShown: true };
 }
 
 function areaFromUserText(text: string, filters: SchoolSearchFilters): SchoolSearchFilters | null {
@@ -320,13 +360,14 @@ function shownProgramQuestion(text: string): ShownProgramQuestion | null {
   return null;
 }
 
-function programFitsQuestion(program: string | undefined, question: ShownProgramQuestion): boolean {
+function programFitsQuestion(school: School, question: ShownProgramQuestion): boolean {
+  const labels = school.programs ?? [];
   if (question === "list") return true;
-  if (question === "international") return INTERNATIONAL_PROGRAM.test(program ?? "");
-  if (question === "cambridge") return /cambridge|кембридж/i.test(program ?? "");
-  if (question === "ib") return programMatches(program, "IB");
-  if (question === "british") return programMatches(program, "British");
-  return programMatches(program, "American");
+  if (question === "international") return labels.some((label) => INTERNATIONAL_PROGRAM.test(label));
+  if (question === "cambridge") return labels.some((label) => /cambridge|кембридж/i.test(label));
+  if (question === "ib") return programsMatch(labels, "IB");
+  if (question === "british") return programsMatch(labels, "British");
+  return programsMatch(labels, "American");
 }
 
 function schoolsForSlugs(slugs: string[], schools: School[]): AssistantSchool[] {
@@ -347,7 +388,7 @@ function lastShownSlugs(messages: AssistantTurn[]): string[] {
 
 function joinQuotedPrograms(schools: AssistantSchool[], locale: UiLang): string {
   const parts = schools.map((school) => {
-    const program = school.program?.trim();
+    const program = joinLookupLabels(school.programs);
     const quoted = program || (locale === "ru" ? "не указана" : locale === "de" ? "nicht angegeben" : locale === "ge" ? "არ არის მითითებული" : "not listed");
     return `${primarySchoolName(school)} («${quoted}»)`;
   });
@@ -432,7 +473,7 @@ export function answerAboutShownPrograms(
   const shown = schoolsForSlugs(slugs, schools);
   if (shown.length === 0) return null;
   const matches =
-    question === "list" ? shown : shown.filter((school) => programFitsQuestion(school.program, question));
+    question === "list" ? shown : shown.filter((school) => programFitsQuestion(school, question));
   return {
     reply: shownProgramReply(messageLocale(latestUserText(messages), locale), question, matches, shown.length),
     schools: matches,
@@ -444,9 +485,12 @@ function shownCatalogNote(slugs: string[], schools: School[]): string {
   const lines = slugs.map((slug) => {
     const school = schools.find((item) => item.slug === slug);
     if (!school) return `- ${slug}`;
-    return `- ${slug} | ${primarySchoolName(school)} | program: ${school.program?.trim() || "none"}`;
+    const programs = joinLookupLabels(school.programs) || "нет";
+    const internationalStatuses = joinLookupLabels(school.internationalStatuses) || "нет";
+    const accreditations = joinLookupLabels(school.accreditations) || "нет";
+    return `- ${slug} | ${primarySchoolName(school)} | программы: ${programs} | международный статус: ${internationalStatuses} | аккредитация: ${accreditations}`;
   });
-  return `Shown schools and the catalog program field. Attribute a curriculum only when it is written here:\n${lines.join("\n")}`;
+  return `Показанные школы и их списки из каталога. Приписывай учебную программу, только если она записана в programs. Международный статус и аккредитация — отдельные списки:\n${lines.join("\n")}`;
 }
 
 function asksForSchools(text: string): boolean {
@@ -460,7 +504,8 @@ function filtersAreEmpty(filters: SchoolSearchFilters): boolean {
     !filters.district &&
     !filters.area &&
     !filters.minPrice &&
-    !filters.maxPrice
+    !filters.maxPrice &&
+    !filters.priceRank
   );
 }
 
@@ -483,13 +528,14 @@ function catalogCost(school: School): string | null {
 async function toolPayload(
   filters: SchoolSearchFilters,
   schools: School[],
-  locale: UiLang
+  locale: UiLang,
+  withinShown = false
 ): Promise<{ payload: unknown; selected: AssistantSchool[] }> {
   if (filtersAreEmpty(filters)) {
     return {
       payload: {
         error: "no_constraints",
-        hint: "Ask which language, curriculum, district, or budget matters. Do not list schools.",
+        hint: "Спроси, какой язык, учебная программа, район или бюджет важны. Не перечисляй школы.",
       },
       selected: [],
     };
@@ -501,7 +547,7 @@ async function toolPayload(
     return {
       payload: {
         error: "unknown_district",
-        hint: "This place is not one of the ten mapped Tbilisi districts or a known area (north, south, center, west, east, rightBank, leftBank).",
+        hint: "Это место не входит в десять нанесённых на карту районов Тбилиси и не является известной областью (north, south, center, west, east, rightBank, leftBank).",
       },
       selected: [],
     };
@@ -528,24 +574,50 @@ async function toolPayload(
         costStatus: costStatusOf(match.school),
         costYear: costYearOf(match.school),
         costPeriod: costPeriodOf(match.school),
-        program: match.school.program ?? null,
+        programs: match.school.programs,
+        internationalStatuses: match.school.internationalStatuses,
+        accreditations: match.school.accreditations,
         address: match.school.address,
         district: match.school.district,
         districtNames: match.school.district ? districtLabels(match.school.district) : null,
         priceUncertain: match.priceUncertain,
       })),
-      outsideDistrict: result.outsideDistrict.map((school) => ({
-        name: primarySchoolName(school),
-        address: school.address,
-        languages: formatInstructionLanguagesLabel(school.languages, "bilingual"),
-        program: school.program ?? null,
-      })),
+      outsideDistrictCount: result.outsideDistrict.length,
       exchangeRates: rateNote(rates),
-      replyHint: result.area
-        ? `Cards will list each school. Reply with a short summary only. This search is exactly area id "${result.area.id}" (${result.area.districts.map((id) => districtLabels(id)[locale]).join(", ")}). In Russian, north is север, south is юг, center is центр, west is запад, east is восток. Use only the direction that matches this area id. Mention each district. outsideDistrict schools are outside the mapped polygons. Also cover single-language versus bilingual (RU/EN, GE/EN), price spread, and programs. Do not name schools or make a list.`
-        : "Cards will list each school. Reply with a short summary only: single-language versus bilingual (RU/EN, GE/EN), price spread, and programs. Do not name schools or make a list.",
+      priceRank: result.priceRank,
+      replyHint: searchReplyHint(result, locale, withinShown),
     },
   };
+}
+
+function areaSentence(result: SchoolSearchResult, locale: UiLang): string {
+  if (!result.area) return "";
+  const names = result.area.districts.map((id) => districtLabels(id)[locale]).join(", ");
+  return `Этот поиск — ровно область с id «${result.area.id}» (${names}). north — север, south — юг, center — центр, west — запад, east — восток. Используй только сторону света, которая соответствует этому id области. Упомяни каждый район. Эти районы внутри запрошенной области.`;
+}
+
+function outsideSentence(count: number): string {
+  if (count === 0) return "";
+  return ` outsideDistrictCount равен ${count}. Одним предложением скажи, что столько школ подошли по языку, программе или бюджету, но их точка не попала ни в один район. Не описывай их языки, цены и программы и не называй их школами запрошенной области.`;
+}
+
+function searchReplyHint(result: SchoolSearchResult, locale: UiLang, withinShown = false): string {
+  if (result.priceRank?.considered === 0) {
+    return "Ни у одной подходящей школы нет цены, по которой можно сравнить. Скажи, что отобрать самые дешёвые или самые дорогие нельзя. Не перечисляй школы.";
+  }
+  const place = areaSentence(result, locale);
+  const outside = outsideSentence(result.outsideDistrict.length);
+  if (result.matches.length === 0) {
+    const where = place ? `${place} Скажи, что в этих районах школ нет.` : "Скажи, что ничего не нашлось.";
+    return `Список schools пуст. Ответь на языке последнего сообщения пользователя, даже если это не язык интерфейса и не язык этой подсказки. ${where} Не описывай языки, цены, программы и не говори, что набор есть.${outside}`;
+  }
+  const summary = `Карточки перечислят каждую школу на языке интерфейса. Ответь только коротким резюме на языке последнего сообщения пользователя, даже если это не язык интерфейса и не язык этой подсказки. ${place} Опиши школы с одним языком и билингвальные (RU/EN, GE/EN), разброс цен и программы. Не называй школы и не делай список.${outside}`;
+  if (!result.priceRank) return summary;
+  const slice =
+    result.priceRank.kind === "cheapest"
+      ? `Список schools уже содержит треть школ с самой низкой нижней границей цены: ${result.priceRank.shown} из ${result.priceRank.considered} с известной ценой. ${withinShown ? "Счёт идёт от школ, которые уже были показаны, а не от всего каталога." : "Это не весь каталог."} Школы без цены в список не входили. Скажи об этом в резюме и сам школы не отбирай.`
+      : `Список schools уже содержит треть школ с самой высокой верхней границей цены: ${result.priceRank.shown} из ${result.priceRank.considered} с известной ценой. ${withinShown ? "Счёт идёт от школ, которые уже были показаны, а не от всего каталога." : "Это не весь каталог."} Школы без цены в список не входили. Скажи об этом в резюме и сам школы не отбирай.`;
+  return `${summary} ${slice}`;
 }
 
 function describeSchool(school: AssistantSchool, locale: UiLang) {
@@ -560,7 +632,9 @@ function describeSchool(school: AssistantSchool, locale: UiLang) {
     costStatus: costStatusOf(school),
     costYear: costYearOf(school),
     costPeriod: costPeriodOf(school),
-    program: school.program ?? null,
+    programs: school.programs,
+    internationalStatuses: school.internationalStatuses,
+    accreditations: school.accreditations,
     address: school.address,
     website: school.website ?? null,
     district: school.district,
@@ -591,7 +665,7 @@ async function comparePayload(
         error: "need_two_schools",
         missing: result.missing,
         matched: result.matched.map((school) => describeSchool(school, locale)),
-        hint: "A comparison needs at least two catalog schools. Say which names were not found.",
+        hint: "Для сравнения нужны минимум две школы из каталога. Скажи, какие названия не найдены.",
       },
     };
   }
@@ -603,7 +677,7 @@ async function comparePayload(
       schools: result.matched.map((school) => describeSchool(school, locale)),
       exchangeRates: rateNote(await loadExchangeRates()),
       replyHint:
-        "The UI renders a comparison table for these schools: languages, program, price, district, address, website. Write one or two sentences on the main differences. Do not draw a table or repeat every cell. If truncated is true, say only four schools can be compared. Prices in the table stay in the catalog currency. When exchangeRates is present, you may use it to say which school costs more across currencies.",
+        "Интерфейс рисует таблицу сравнения этих школ на языке интерфейса: языки, программы, международный статус, аккредитация, цена, район, адрес, сайт. Напиши одно-два предложения о главных различиях на языке последнего сообщения пользователя, даже если это не язык интерфейса и не язык этой подсказки. Не рисуй таблицу и не повторяй каждую ячейку. Если truncated равен true, скажи, что сравнить можно только четыре школы. Цены в таблице остаются в валюте каталога. Если есть exchangeRates, можно по нему сказать, какая школа дороже при разных валютах.",
     },
   };
 }
@@ -655,16 +729,14 @@ export async function runAssistant(input: {
   if (!apiKey) throw new AssistantConfigError();
   const model = process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini";
   const client = new OpenAI({ apiKey, timeout: 25_000, maxRetries: 0 });
-  const messages: OpenAI.ChatCompletionMessageParam[] = [
-    { role: "system", content: `${SYSTEM_PROMPT}\nUI locale: ${locale}.` },
-    ...dialogue.map((turn) => ({
-      role: turn.role,
-      content:
-        turn.role === "assistant" && turn.shown?.length
-          ? `${turn.content}\n\n${shownCatalogNote(turn.shown, input.schools)}`
-          : turn.content,
-    })),
-  ];
+  const history: OpenAI.ChatCompletionMessageParam[] = dialogue.map((turn) => ({
+    role: turn.role,
+    content:
+      turn.role === "assistant" && turn.shown?.length
+        ? `${turn.content}\n\n${shownCatalogNote(turn.shown, input.schools)}`
+        : turn.content,
+  }));
+  const messages: OpenAI.ChatCompletionMessageParam[] = [systemPrompt(PARSE_PROMPT, locale), ...history];
 
   try {
     const first = await client.chat.completions.create({
@@ -680,18 +752,23 @@ export async function runAssistant(input: {
     if (!choice || toolCalls.length === 0) {
       const userText = latestUserText(dialogue);
       const recovered = asksForSchools(userText) ? areaFromUserText(userText, {}) : null;
-      if (!recovered) {
+      const ranked = rankScope(applyPriceRank(recovered ?? {}, userText), userText, dialogue, input.schools);
+      if (!recovered && !ranked.filters.priceRank) {
         return { reply: textOrFallback(choice?.content, locale), schools: [], comparison: null };
       }
-      const outcome = await toolPayload(recovered, input.schools, locale);
+      const outcome = await toolPayload(ranked.filters, ranked.schools, locale, ranked.withinShown);
+      const placeLine = recovered
+        ? `\nМесто пользователя — только область с id «${recovered.area}». Опечатка вроде «не севере» означает «на севере», то есть north. Не описывай это место любой другой стороной света.`
+        : "";
       const second = await client.chat.completions.create({
         model,
         temperature: 0.2,
         messages: [
-          ...messages,
+          systemPrompt(REPLY_PROMPT, locale),
+          ...history,
           {
             role: "system",
-            content: `Search result JSON:\n${JSON.stringify(outcome.payload)}\nThe user place is only area id "${recovered.area}". A misspelling like "не севере" means "на севере", which is north. Do not describe this place as any other compass direction.`,
+            content: `JSON результата поиска:\n${JSON.stringify(outcome.payload)}${placeLine}`,
           },
         ],
       });
@@ -734,8 +811,10 @@ export async function runAssistant(input: {
         continue;
       }
       const parsed = parseToolFilters(call.function.arguments);
-      const recovered = areaFromUserText(latestUserText(dialogue), parsed);
-      const outcome = await toolPayload(recovered ?? parsed, input.schools, locale);
+      const userText = latestUserText(dialogue);
+      const recovered = areaFromUserText(userText, parsed);
+      const ranked = rankScope(applyPriceRank(recovered ?? parsed, userText), userText, dialogue, input.schools);
+      const outcome = await toolPayload(ranked.filters, ranked.schools, locale, ranked.withinShown);
       if (!comparison) selected = outcome.selected;
       toolMessages.push({
         role: "tool",
@@ -749,13 +828,19 @@ export async function runAssistant(input: {
     const placeNote: OpenAI.ChatCompletionMessageParam | null = place
       ? {
           role: "system",
-          content: `The user place is only area id "${place.id}". A misspelling like "не севере" means "на севере", which is north. Do not describe this place as any other compass direction.`,
+          content: `Место пользователя — только область с id «${place.id}». Опечатка вроде «не севере» означает «на севере», то есть north. Не описывай это место любой другой стороной света.`,
         }
       : null;
     const second = await client.chat.completions.create({
       model,
       temperature: 0.2,
-      messages: [...messages, choice, ...toolMessages, ...(placeNote ? [placeNote] : [])],
+      messages: [
+        systemPrompt(REPLY_PROMPT, locale),
+        ...history,
+        choice,
+        ...toolMessages,
+        ...(placeNote ? [placeNote] : []),
+      ],
     });
 
     const reply = textOrFallback(second.choices[0]?.message.content, locale);

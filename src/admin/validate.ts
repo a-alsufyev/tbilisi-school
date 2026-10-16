@@ -70,7 +70,12 @@ export function validateSchoolInput(
   }
   const rawCostPeriod = typeof source.costPeriod === "string" ? source.costPeriod : "";
   const costPeriod = costStatus !== "unknown" && isCostPeriod(rawCostPeriod) ? rawCostPeriod : null;
-  const program = typeof source.program === "string" ? source.program.trim() : "";
+  const programIds = readLookupIds(source.programIds);
+  const internationalStatusIds = readLookupIds(source.internationalStatusIds);
+  const accreditationIds = readLookupIds(source.accreditationIds);
+  if (!programIds || !internationalStatusIds || !accreditationIds) {
+    fields.lookups = "Неизвестное значение справочника";
+  }
 
   const translations = blankTranslations();
   const rawTranslations =
@@ -108,7 +113,9 @@ export function validateSchoolInput(
       costCurrency,
       costYear,
       costPeriod,
-      program: program || null,
+      programIds: programIds ?? [],
+      internationalStatusIds: internationalStatusIds ?? [],
+      accreditationIds: accreditationIds ?? [],
       nameLocale,
       translations,
     },
@@ -117,4 +124,17 @@ export function validateSchoolInput(
 
 export function isAdminLocale(value: string): value is AdminLocale {
   return (ADMIN_LOCALES as readonly string[]).includes(value);
+}
+
+const LOOKUP_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function readLookupIds(value: unknown): string[] | null {
+  if (value == null) return [];
+  if (!Array.isArray(value)) return null;
+  const ids: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string" || !LOOKUP_ID_RE.test(item)) return null;
+    if (!ids.includes(item)) ids.push(item);
+  }
+  return ids;
 }

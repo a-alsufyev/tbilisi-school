@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { formatInstructionLanguagesLabel } from "../../admin/languages";
 import { ADMIN_LOCALES, schoolLabel, type AdminSchool } from "../../admin/types";
+import LookupDirectory from "./LookupDirectory";
 import SchoolForm from "./SchoolForm";
 
 type AdminWorkspaceProps = {
@@ -19,6 +20,7 @@ export default function AdminWorkspace({ onLogout }: AdminWorkspaceProps) {
   const [query, setQuery] = useState("");
   const [selection, setSelection] = useState<Selection>(null);
   const [notice, setNotice] = useState("");
+  const [section, setSection] = useState<"schools" | "lookups">("schools");
 
   useEffect(() => {
     let cancelled = false;
@@ -87,6 +89,30 @@ export default function AdminWorkspace({ onLogout }: AdminWorkspaceProps) {
           Выйти
         </button>
       </header>
+      <nav className="shrink-0 bg-white border-b border-gray-200 px-4 flex gap-2">
+        {(
+          [
+            ["schools", "Школы"],
+            ["lookups", "Справочники"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setSection(id)}
+            className={`px-3 py-2 text-sm border-b-2 ${
+              section === id
+                ? "border-indigo-600 text-indigo-700 font-medium"
+                : "border-transparent text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+      {section === "lookups" ? (
+        <LookupDirectory onUnauthorized={onLogout} />
+      ) : (
       <div className="flex-1 min-h-0 flex flex-col md:grid md:grid-cols-[320px_minmax(0,1fr)]">
         <aside className={listClass}>
           <div className="p-4 border-b border-gray-100">
@@ -154,6 +180,7 @@ export default function AdminWorkspace({ onLogout }: AdminWorkspaceProps) {
           )}
         </section>
       </div>
+      )}
     </div>
   );
 }

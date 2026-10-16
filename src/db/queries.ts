@@ -2,12 +2,14 @@ import { eq, sql } from "drizzle-orm";
 import { costBoundOf, costCurrencyOf, costPeriodOf, costYearOf, isCostStatus } from "../lib/cost";
 import { isSupportedUiLang } from "../lib/schools";
 import { db } from "./index";
+import { listLookupLinks, lookupLabelsForSchool } from "./lookup-queries";
 import { schools, schoolTranslations, siteStats } from "./schema";
 import type { School } from "../types";
 
 export async function listSchools(): Promise<School[]> {
   const rows = await db.select().from(schools);
   const translations = await db.select().from(schoolTranslations);
+  const lookupLinks = await listLookupLinks();
 
   const bySchool = new Map<string, { en: string; ru: string; ge: string; de: string }>();
   for (const row of translations) {
@@ -21,6 +23,7 @@ export async function listSchools(): Promise<School[]> {
   return rows.map((row) => {
     const names = bySchool.get(row.id) ?? { en: "", ru: "", ge: "", de: "" };
     const nameLocale = isSupportedUiLang(row.nameLocale) ? row.nameLocale : "en";
+    const labels = lookupLabelsForSchool(lookupLinks, row.id);
     const coordinates =
       row.lat != null && row.lng != null ? `${row.lat}, ${row.lng}` : "";
     return {
@@ -39,7 +42,9 @@ export async function listSchools(): Promise<School[]> {
       costCurrency: costCurrencyOf(row),
       costYear: costYearOf(row),
       costPeriod: costPeriodOf(row),
-      program: row.program ?? undefined,
+      programs: labels.program,
+      internationalStatuses: labels.international_status,
+      accreditations: labels.accreditation,
     };
   });
 }

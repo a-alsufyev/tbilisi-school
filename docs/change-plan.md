@@ -13,7 +13,7 @@
 |---|---|---|
 | 1 | Формат URL | `/{lang}/schools/{slug}` |
 | 2 | Редирект `/` | Язык браузера, если `en\|ru\|ge\|de`, иначе `/en` |
-| 3 | Путь карты | `/{lang}` — карта на корне языка |
+| 3 | Путь карты | Изначально `/{lang}`. Сейчас корень языка — главная, карта на `/{lang}/map`. Актуальные пути — в [architecture.md](./architecture.md) |
 | 4 | СУБД | PostgreSQL + Drizzle. Локально — Postgres на Windows, в проде — контейнер в Compose |
 | 5 | users / comments | Не создавать живые таблицы. Заготовка: [schema-next.md](./schema-next.md), сразу под email/пароль и Google |
 | 10 | Авторизация | Код, сессии и OAuth не в этой волне. В URL зарезервировать `/login`, `/register`. HTTPS — когда будем делать вход через Google |
@@ -29,9 +29,12 @@
 
 Библиотека: `react-router-dom`. Язык в пути, школа по **латинскому kebab-case slug**, не по числовому id и не по текущим `северная_школа`.
 
+Исходное решение «карта на корне» заменено главной. Текущие пути:
+
 ```
 /                         → редирект на /{lang}
-/{lang}                   → карта
+/{lang}                   → главная
+/{lang}/map               → карта
 /{lang}/schools           → каталог
 /{lang}/schools/{slug}    → карточка школы
 /{lang}/directory         → справочник
@@ -78,7 +81,7 @@ Express в production уже отдаёт `index.html` на `*`. В dev Vite SPA
 - `lng` DOUBLE PRECISION NULL
 - `languages` TEXT
 - `cost` TEXT NULL
-- `program` TEXT NULL
+- `program` TEXT NULL — в этой заготовке. Сейчас колонки нет: программа, международный статус и аккредитация живут в справочниках, см. [architecture.md](./architecture.md)
 - `created_at` / `updated_at`
 
 **school_translations**
@@ -174,4 +177,4 @@ DATABASE_URL=postgres://...@db:5432/tbilisi
 - Комментарии, рейтинги
 - Nginx, TLS, домен — понадобятся перед Google OAuth в проде
 - Нормализация валют и цен в отдельные колонки
-- Фильтры каталога (можно позже, URL уже будут готовы к query: `/{lang}/schools?program=ib`)
+- Отдельная панель фильтров каталога. Позже появились ссылки с query `q`, `lang`, `program`, `intl`, `district`; `program` сравнивается с подписью точно, не как синоним у ассистента

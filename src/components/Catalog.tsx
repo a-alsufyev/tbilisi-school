@@ -7,9 +7,15 @@ import { ArrowLeft, MapPin, Languages, CreditCard, BookOpen, MessageSquare, Load
 import { externalHref } from "../lib/website";
 import { localeSchoolName, primarySchoolName } from "../hooks/useSchoolTranslations";
 import { formatInstructionLanguagesLabel } from "../admin/languages";
+import { joinLookupLabels } from "../lib/lookups";
 import { costStatusOf, formatCostAmount, formatCostStatusText } from "../lib/cost";
 import { normalizeUiLanguage, schoolReturnTo } from "../lib/schools";
 import MapView from "./Map";
+import SchoolCard from "./SchoolCard";
+import CoverImage from "./CoverImage";
+import SchoolBadges from "./SchoolBadges";
+import DistrictMiniMap from "./DistrictMiniMap";
+import { initialsOf, schoolPhotos } from "../lib/cover";
 
 interface CatalogProps {
   schools: School[];
@@ -70,7 +76,7 @@ const Catalog: React.FC<CatalogProps> = ({ schools, apiKey, selectedSchool }) =>
 
   const returnTo = schoolReturnTo(location.search);
   const backHref =
-    returnTo === "map" ? prefix : returnTo === "assistant" ? `${prefix}/assistant` : `${prefix}/schools`;
+    returnTo === "map" ? `${prefix}/map` : returnTo === "assistant" ? `${prefix}/assistant` : `${prefix}/schools`;
   const backLabel =
     returnTo === "map"
       ? t("catalog.backMap")
@@ -105,13 +111,20 @@ const Catalog: React.FC<CatalogProps> = ({ schools, apiKey, selectedSchool }) =>
             )}
           </div>
 
-          <div className="p-8">
-            <div className="mb-6">
-              <h2 className="text-3xl font-bold text-gray-900">{primaryName}</h2>
-              {localName && (
-                <p className="text-xl text-gray-500 mt-1 font-medium">{localName}</p>
-              )}
+          <CoverImage
+            seed={selectedSchool.slug}
+            photos={schoolPhotos(selectedSchool)}
+            initials={initialsOf(primaryName)}
+            className="h-52 sm:h-60"
+          >
+            <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
+              <h2 className="text-3xl font-bold drop-shadow-sm">{primaryName}</h2>
+              {localName && <p className="text-lg text-white/85 mt-1 font-medium">{localName}</p>}
+              <SchoolBadges school={selectedSchool} maxPrograms={4} className="mt-3" />
             </div>
+          </CoverImage>
+
+          <div className="p-8">
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
               <div className="space-y-6">
@@ -152,11 +165,21 @@ const Catalog: React.FC<CatalogProps> = ({ schools, apiKey, selectedSchool }) =>
                   <div className="p-3 bg-purple-50 rounded-lg text-purple-600">
                     <BookOpen className="w-6 h-6" />
                   </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                      {t("catalog.program")}
-                    </h4>
-                    <p className="text-lg text-gray-900">{selectedSchool.program || "—"}</p>
+                  <div className="space-y-4">
+                    {(
+                      [
+                        ["catalog.program", selectedSchool.programs],
+                        ["catalog.internationalStatus", selectedSchool.internationalStatuses],
+                        ["catalog.accreditation", selectedSchool.accreditations],
+                      ] as const
+                    ).map(([key, labels]) => (
+                      <div key={key}>
+                        <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                          {t(key)}
+                        </h4>
+                        <p className="text-lg text-gray-900">{joinLookupLabels(labels) || "—"}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -195,8 +218,11 @@ const Catalog: React.FC<CatalogProps> = ({ schools, apiKey, selectedSchool }) =>
               </div>
             </div>
 
-            <div className="rounded-xl overflow-hidden border border-gray-200 shadow-inner mb-8">
-              <MapView schools={[selectedSchool]} apiKey={apiKey} height="300px" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <DistrictMiniMap school={selectedSchool} />
+              <div className="md:col-span-2 rounded-xl overflow-hidden border border-gray-200 shadow-inner">
+                <MapView schools={[selectedSchool]} apiKey={apiKey} height="300px" />
+              </div>
             </div>
 
             <div className="flex items-start gap-4 p-6 bg-blue-50 rounded-xl">
@@ -229,61 +255,17 @@ const Catalog: React.FC<CatalogProps> = ({ schools, apiKey, selectedSchool }) =>
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <AnimatePresence mode="popLayout">
-          {schools.map((school, index) => {
-            const primaryName = getPrimaryName(school);
-            const localName = getLocaleName(school);
-
-            return (
-              <motion.div
-                key={school.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.05 }}
-                whileHover={{ y: -4 }}
-              >
-                <Link
-                  to={`${prefix}/schools/${school.slug}?from=catalog`}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 cursor-pointer hover:shadow-md transition-all group block h-full"
-                >
-                  <div className="mb-4">
-                    <h3 className="text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
-                      {primaryName}
-                    </h3>
-                    {localName && (
-                      <p className="text-sm text-gray-500 font-medium">{localName}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-gray-500 text-sm">
-                      <MapPin className="w-4 h-4 flex-shrink-0" />
-                      <span className="truncate">{school.address}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-500 text-sm">
-                      <Languages className="w-4 h-4 flex-shrink-0" />
-                      <span>{languageLabel(school.languages) || "—"}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-500 text-sm">
-                      <CreditCard className="w-4 h-4 flex-shrink-0" />
-                      <span>
-                        {costStatusOf(school) === "unknown"
-                          ? t("catalog.costUnknown")
-                          : costAmount(school)
-                            ? `${costAmount(school)} · ${costPhrase(school)}`
-                            : costPhrase(school)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 pt-4 border-t border-gray-50 flex justify-end">
-                    <span className="text-indigo-600 text-sm font-semibold group-hover:underline">
-                      {t("catalog.viewDetails")} →
-                    </span>
-                  </div>
-                </Link>
-              </motion.div>
-            );
-          })}
+          {schools.map((school, index) => (
+            <motion.div
+              key={school.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.05 }}
+              whileHover={{ y: -4 }}
+            >
+              <SchoolCard school={school} prefix={prefix} />
+            </motion.div>
+          ))}
         </AnimatePresence>
       </div>
     </div>

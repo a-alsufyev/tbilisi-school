@@ -13,6 +13,7 @@ import { allowAssistantRequest } from "./src/lib/assistant-rate";
 import { isSafeSchoolIdentifier, normalizeUiLanguage } from "./src/lib/schools";
 import { getVisitStats, incrementVisitStats } from "./src/lib/visits";
 import { prepareDatabase } from "./src/db/bootstrap";
+import { listPublicDirectory } from "./src/db/lookup-queries";
 import { getSchoolDescription, listSchools } from "./src/db/queries";
 
 dotenv.config();
@@ -56,6 +57,15 @@ async function startServer() {
       res.json({ description });
     } catch (error) {
       console.error("Error reading description:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/directory", async (_req, res) => {
+    try {
+      res.json(await listPublicDirectory());
+    } catch (error) {
+      console.error("Error reading directory:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   });

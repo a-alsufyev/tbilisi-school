@@ -12,6 +12,7 @@ import {
 } from "../lib/admin-session";
 import { SLUG_TAKEN_MESSAGE, validateSchoolInput } from "./validate";
 import { fillMissingNameTranslations } from "../lib/translate-name";
+import { isLookupKind, normalizeLookupLabel } from "../lib/lookups";
 import {
   assignSlug,
   createAdminSchool,
@@ -20,6 +21,13 @@ import {
   listAdminSchools,
   updateAdminSchool,
 } from "../db/admin-queries";
+import {
+  createLookupItem,
+  deleteLookupItem,
+  InvalidLookupSelection,
+  listLookupItems,
+  updateLookupItem,
+} from "../db/lookup-queries";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -109,6 +117,10 @@ async function create(req: Request, res: Response): Promise<void> {
       translationWarning: translated.incomplete,
     });
   } catch (error) {
+    if (error instanceof InvalidLookupSelection) {
+      res.status(400).json({ error: "validation", fields: { lookups: "Неизвестное значение справочника" } });
+      return;
+    }
     if (isSlugConflict(error)) {
       res.status(400).json({ error: "validation", fields: { slug: SLUG_TAKEN_MESSAGE } });
       return;
@@ -141,12 +153,80 @@ async function update(req: Request, res: Response): Promise<void> {
     }
     res.json({ ...result.school, geocodeWarning: result.geocodeWarning });
   } catch (error) {
+    if (error instanceof InvalidLookupSelection) {
+      res.status(400).json({ error: "validation", fields: { lookups: "Неизвестное значение справочника" } });
+      return;
+    }
     if (isSlugConflict(error)) {
       res.status(400).json({ error: "validation", fields: { slug: SLUG_TAKEN_MESSAGE } });
       return;
     }
     throw error;
   }
+}
+
+async function listLookups(_req: Request, res: Response): Promise<void> {
+  res.json(await listLookupItems());
+}
+
+async function createLookup(req: Request, res: Response): Promise<void> {
+  const kind = typeof req.body?.kind === "string" ? req.body.kind : "";
+  if (!isLookupKind(kind)) {
+    res.status(400).json({ error: "invalid_kind" });
+    return;
+  }
+  const label = normalizeLookupLabel(req.body?.label);
+  if (!label) {
+    res.status(400).json({ error: "validation" });
+    return;
+  }
+  const result = await createLookupItem(kind, label);
+  if (result === "duplicate") {
+    res.status(409).json({ error: "duplicate" });
+    return;
+  }
+  res.status(201).json(result);
+}
+
+async function renameLookup(req: Request, res: Response): Promise<void> {
+  const id = req.params.id;
+  if (!UUID_RE.test(id)) {
+    res.status(400).json({ error: "invalid_id" });
+    return;
+  }
+  const label = normalizeLookupLabel(req.body?.label);
+  if (!label) {
+    res.status(400).json({ error: "validation" });
+    return;
+  }
+  const result = await updateLookupItem(id, label);
+  if (result === "not_found") {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  if (result === "duplicate") {
+    res.status(409).json({ error: "duplicate" });
+    return;
+  }
+  res.json(result);
+}
+
+async function removeLookup(req: Request, res: Response): Promise<void> {
+  const id = req.params.id;
+  if (!UUID_RE.test(id)) {
+    res.status(400).json({ error: "invalid_id" });
+    return;
+  }
+  const result = await deleteLookupItem(id);
+  if (result === "not_found") {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  if (result === "in_use") {
+    res.status(409).json({ error: "in_use" });
+    return;
+  }
+  res.json({ ok: true });
 }
 
 function asyncRoute(handler: (req: Request, res: Response) => Promise<void>) {
@@ -162,4 +242,8 @@ export function registerAdminRoutes(app: Express): void {
   app.get("/api/admin/schools", requireAdmin, asyncRoute(list));
   app.post("/api/admin/schools", requireAdmin, asyncRoute(create));
   app.put("/api/admin/schools/:id", requireAdmin, asyncRoute(update));
+  app.get("/api/admin/lookups", requireAdmin, asyncRoute(listLookups));
+  app.post("/api/admin/lookups", requireAdmin, asyncRoute(createLookup));
+  app.patch("/api/admin/lookups/:id", requireAdmin, asyncRoute(renameLookup));
+  app.delete("/api/admin/lookups/:id", requireAdmin, asyncRoute(removeLookup));
 }

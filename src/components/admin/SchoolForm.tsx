@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { normalizeInstructionLanguages } from "../../admin/languages";
+import { LOOKUP_KINDS, type LookupKind } from "../../lib/lookups";
 import { COST_CURRENCIES, costYearOptions } from "../../lib/cost";
 import type { CostCurrency, CostPeriod, CostStatus } from "../../types";
 import { suggestSlug } from "../../admin/slug";
@@ -26,6 +27,14 @@ type SchoolFormProps = {
 const fieldClass =
   "w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
+type LookupOption = { id: string; kind: LookupKind; label: string };
+
+const LOOKUP_TITLES: Record<LookupKind, string> = {
+  program: "Программа",
+  international_status: "Международный статус",
+  accreditation: "Аккредитация",
+};
+
 export default function SchoolForm({
   school,
   notice,
@@ -44,7 +53,10 @@ export default function SchoolForm({
   const [costStatus, setCostStatus] = useState<CostStatus>(school?.costStatus ?? "unknown");
   const [costYear, setCostYear] = useState<number | null>(school?.costYear ?? null);
   const [costPeriod, setCostPeriod] = useState<CostPeriod | null>(school?.costPeriod ?? null);
-  const [program, setProgram] = useState(school?.program ?? "");
+  const [programIds, setProgramIds] = useState(school?.programIds ?? []);
+  const [internationalStatusIds, setInternationalStatusIds] = useState(school?.internationalStatusIds ?? []);
+  const [accreditationIds, setAccreditationIds] = useState(school?.accreditationIds ?? []);
+  const [lookups, setLookups] = useState<LookupOption[] | null>(null);
   const [translations, setTranslations] = useState(school?.translations ?? blankTranslations());
   const [nameLocale, setNameLocale] = useState<AdminLocale>(school?.nameLocale ?? "en");
   const [tab, setTab] = useState<AdminLocale>("ru");
@@ -52,8 +64,39 @@ export default function SchoolForm({
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const response = await fetch("/api/admin/lookups");
+      if (response.status === 401) {
+        onUnauthorized();
+        return;
+      }
+      if (!response.ok) return;
+      const data = (await response.json()) as LookupOption[];
+      if (!cancelled) setLookups(data);
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [onUnauthorized]);
+
   function touch() {
     onEdit();
+  }
+
+  function selectedIds(kind: LookupKind): string[] {
+    if (kind === "program") return programIds;
+    if (kind === "international_status") return internationalStatusIds;
+    return accreditationIds;
+  }
+
+  function setSelectedIds(kind: LookupKind, next: string[]) {
+    if (kind === "program") setProgramIds(next);
+    else if (kind === "international_status") setInternationalStatusIds(next);
+    else setAccreditationIds(next);
+    touch();
   }
 
   function applyNameSlug() {
@@ -81,7 +124,9 @@ export default function SchoolForm({
       costStatus,
       costYear,
       costPeriod,
-      program,
+      programIds,
+      internationalStatusIds,
+      accreditationIds,
       nameLocale,
       translations,
     };
@@ -367,19 +412,39 @@ export default function SchoolForm({
             </div>
           </div>
 
-          <div className="mt-4">
-            <label htmlFor="school-program" className="block text-sm font-medium text-gray-700 mb-1">
-              Программа
-            </label>
-            <input
-              id="school-program"
-              value={program}
-              onChange={(event) => {
-                setProgram(event.target.value);
-                touch();
-              }}
-              className={fieldClass}
-            />
+          <div className="mt-4 space-y-4">
+            {LOOKUP_KINDS.map((kind) => {
+              const options = (lookups ?? []).filter((item) => item.kind === kind);
+              const selected = new Set(selectedIds(kind));
+              return (
+                <fieldset key={kind}>
+                  <legend className="block text-sm font-medium text-gray-700 mb-1">{LOOKUP_TITLES[kind]}</legend>
+                  {lookups === null && <p className="text-sm text-gray-500">Загрузка...</p>}
+                  {lookups && options.length === 0 && (
+                    <p className="text-sm text-gray-500">Сначала добавьте значения в разделе «Справочники».</p>
+                  )}
+                  <div className="space-y-1">
+                    {options.map((option) => (
+                      <label key={option.id} className="flex items-center gap-2 text-sm text-gray-800">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(option.id)}
+                          onChange={() => {
+                            const next = selected.has(option.id)
+                              ? selectedIds(kind).filter((id) => id !== option.id)
+                              : [...selectedIds(kind), option.id];
+                            setSelectedIds(kind, next);
+                          }}
+                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        {option.label}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              );
+            })}
+            {errors.lookups && <p className="text-sm text-red-600">{errors.lookups}</p>}
           </div>
 
           <div className="mt-4">

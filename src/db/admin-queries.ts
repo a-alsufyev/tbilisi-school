@@ -6,13 +6,15 @@ import { costBoundOf, costCurrencyOf, costPeriodOf, costYearOf, isCostStatus } f
 import { geocodeAddress } from "../lib/geocode";
 import { isSafeSchoolIdentifier } from "../lib/schools";
 import { db } from "./index";
+import { InvalidLookupSelection, listLookupLinks, lookupIdsForSchool, replaceSchoolLookups } from "./lookup-queries";
 import { schoolTranslations, schools } from "./schema";
 
 type SchoolRow = typeof schools.$inferSelect;
 
 function toAdminSchool(
   row: SchoolRow,
-  translations: AdminSchool["translations"]
+  translations: AdminSchool["translations"],
+  lookups: { programIds: string[]; internationalStatusIds: string[]; accreditationIds: string[] }
 ): AdminSchool {
   return {
     id: row.id,
@@ -28,7 +30,9 @@ function toAdminSchool(
     costCurrency: costCurrencyOf(row),
     costYear: costYearOf(row),
     costPeriod: costPeriodOf(row),
-    program: row.program,
+    programIds: lookups.programIds,
+    internationalStatusIds: lookups.internationalStatusIds,
+    accreditationIds: lookups.accreditationIds,
     nameLocale: isAdminLocale(row.nameLocale) ? row.nameLocale : "en",
     translations,
   };
@@ -99,7 +103,15 @@ export async function listAdminSchools(): Promise<AdminSchool[]> {
     bySchool.set(row.schoolId, current);
   }
 
-  return rows.map((row) => toAdminSchool(row, bySchool.get(row.id) ?? blankTranslations()));
+  const links = await listLookupLinks();
+  return rows.map((row) => {
+    const ids = lookupIdsForSchool(links, row.id);
+    return toAdminSchool(row, bySchool.get(row.id) ?? blankTranslations(), {
+      programIds: ids.program,
+      internationalStatusIds: ids.international_status,
+      accreditationIds: ids.accreditation,
+    });
+  });
 }
 
 export async function createAdminSchool(
@@ -123,13 +135,21 @@ export async function createAdminSchool(
         costCurrency: input.costCurrency,
         costYear: input.costYear,
         costPeriod: input.costPeriod,
-        program: input.program,
         nameLocale: input.nameLocale,
       })
       .returning();
 
     await tx.insert(schoolTranslations).values(translationRows(row.id, input));
-    return toAdminSchool(row, input.translations);
+    await replaceSchoolLookups(tx, row.id, {
+      program: input.programIds,
+      international_status: input.internationalStatusIds,
+      accreditation: input.accreditationIds,
+    });
+    return toAdminSchool(row, input.translations, {
+      programIds: input.programIds,
+      internationalStatusIds: input.internationalStatusIds,
+      accreditationIds: input.accreditationIds,
+    });
   });
   return { school, geocodeWarning: coords === null };
 }
@@ -169,7 +189,6 @@ export async function updateAdminSchool(
         costCurrency: input.costCurrency,
         costYear: input.costYear,
         costPeriod: input.costPeriod,
-        program: input.program,
         nameLocale: input.nameLocale,
         updatedAt: new Date(),
       })
@@ -180,8 +199,17 @@ export async function updateAdminSchool(
 
     await tx.delete(schoolTranslations).where(eq(schoolTranslations.schoolId, row.id));
     await tx.insert(schoolTranslations).values(translationRows(row.id, input));
+    await replaceSchoolLookups(tx, row.id, {
+      program: input.programIds,
+      international_status: input.internationalStatusIds,
+      accreditation: input.accreditationIds,
+    });
 
-    return toAdminSchool(row, input.translations);
+    return toAdminSchool(row, input.translations, {
+      programIds: input.programIds,
+      internationalStatusIds: input.internationalStatusIds,
+      accreditationIds: input.accreditationIds,
+    });
   });
 
   if (!school) return null;

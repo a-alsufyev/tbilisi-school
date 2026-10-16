@@ -1,8 +1,8 @@
 import fs from "fs";
 import path from "path";
-import { count } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { db } from "./index";
-import { schools, schoolTranslations, siteStats } from "./schema";
+import { lookupItems, schools, schoolLookupItems, schoolTranslations, siteStats } from "./schema";
 import { parseLegacyCost } from "../lib/cost";
 import { parseSchoolsCsv } from "./parse-csv";
 import { FILE_SLUG_TO_URL_SLUG, LOCALES } from "./slug-map";
@@ -21,6 +21,31 @@ function structuredCost(raw: string | undefined) {
   const parsed = parseLegacyCost(raw);
   if (!parsed) return { costMin: null, costMax: null, costCurrency: null };
   return { costMin: parsed.min, costMax: parsed.max, costCurrency: parsed.currency };
+}
+
+async function linkSeedProgram(schoolId: string, raw: string | undefined, cache: Map<string, string>) {
+  const label = raw?.trim() ?? "";
+  if (!label) return;
+  const key = label.toLowerCase();
+  let itemId = cache.get(key);
+  if (!itemId) {
+    const [existing] = await db
+      .select({ id: lookupItems.id })
+      .from(lookupItems)
+      .where(and(eq(lookupItems.kind, "program"), sql`lower(${lookupItems.label}) = ${key}`))
+      .limit(1);
+    if (existing) {
+      itemId = existing.id;
+    } else {
+      const [created] = await db
+        .insert(lookupItems)
+        .values({ kind: "program", label })
+        .returning({ id: lookupItems.id });
+      itemId = created.id;
+    }
+    cache.set(key, itemId);
+  }
+  await db.insert(schoolLookupItems).values({ schoolId, itemId }).onConflictDoNothing();
 }
 
 function readDescription(fileSlug: string, fallback: string): string {
@@ -51,6 +76,8 @@ export async function seedIfEmpty(): Promise<void> {
     NameEntry
   >;
 
+  const programIds = new Map<string, string>();
+
   for (const school of parsed) {
     const urlSlug = FILE_SLUG_TO_URL_SLUG[school.slug];
     if (!urlSlug) {
@@ -76,10 +103,11 @@ export async function seedIfEmpty(): Promise<void> {
         languages: school.languages,
         ...structuredCost(school.cost),
         costStatus: school.cost ? "approximate" : "unknown",
-        program: school.program || null,
         nameLocale: "en",
       })
       .returning({ id: schools.id });
+
+    await linkSeedProgram(inserted.id, school.program, programIds);
 
     await db.insert(schoolTranslations).values(
       LOCALES.map((locale) => ({

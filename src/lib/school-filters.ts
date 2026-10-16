@@ -21,6 +21,8 @@ export type PriceConstraint = {
   period: PricePeriod;
 };
 
+export type PriceRank = "cheapest" | "expensive";
+
 export type SchoolSearchFilters = {
   languages?: string[];
   program?: string;
@@ -28,6 +30,7 @@ export type SchoolSearchFilters = {
   area?: string;
   minPrice?: PriceConstraint;
   maxPrice?: PriceConstraint;
+  priceRank?: PriceRank;
 };
 
 export type AssistantSchool = School & { district: DistrictId | null };
@@ -42,6 +45,7 @@ export type SchoolSearchResult = {
   unknownDistrict: boolean;
   outsideDistrict: AssistantSchool[];
   area: AreaMatch | null;
+  priceRank: { kind: PriceRank; considered: number; shown: number } | null;
 };
 
 const PROGRAM_GROUPS: { keys: string[]; pattern: RegExp }[] = [
@@ -120,6 +124,10 @@ function mentionsToken(needle: string, key: string): boolean {
   return new RegExp(`(?:^|[^\\p{L}\\p{N}])${escaped}(?:$|[^\\p{L}\\p{N}])`, "iu").test(needle);
 }
 
+export function programsMatch(labels: readonly string[] | undefined, query: string): boolean {
+  return (labels ?? []).some((label) => programMatches(label, query));
+}
+
 export function programMatches(field: string | undefined, query: string): boolean {
   const needle = query.trim().toLowerCase();
   if (!needle) return true;
@@ -177,17 +185,19 @@ export function searchSchools(
       districtIds = [district];
     } else {
       area = resolveArea(districtRaw);
-      if (!area) return { matches: [], unknownDistrict: true, outsideDistrict: [], area: null };
+      if (!area) return { matches: [], unknownDistrict: true, outsideDistrict: [], area: null, priceRank: null };
       districtIds = [...area.districts];
     }
   } else if (areaRaw) {
     area = resolveArea(areaRaw);
-    if (!area) return { matches: [], unknownDistrict: true, outsideDistrict: [], area: null };
+    if (!area) return { matches: [], unknownDistrict: true, outsideDistrict: [], area: null, priceRank: null };
     districtIds = [...area.districts];
   }
 
   const matches: SchoolMatch[] = [];
   const outsideDistrict: AssistantSchool[] = [];
+  const tracksOutside =
+    languages.length > 0 || Boolean(program) || Boolean(filters.minPrice) || Boolean(filters.maxPrice);
 
   for (const school of schools) {
     const withDistrict = attachDistrict(school);
@@ -195,14 +205,14 @@ export function searchSchools(
       const have = new Set(parseInstructionLanguages(school.languages));
       if (!languages.every((code) => have.has(code))) continue;
     }
-    if (program && !programMatches(school.program, program)) continue;
+    if (program && !programsMatch(school.programs, program)) continue;
 
     const fit = priceFit(school, filters.minPrice, filters.maxPrice, rates);
     if (fit === "miss") continue;
 
     if (districtIds) {
       if (withDistrict.district === null) {
-        outsideDistrict.push(withDistrict);
+        if (tracksOutside) outsideDistrict.push(withDistrict);
         continue;
       }
       if (!districtIds.includes(withDistrict.district)) continue;
@@ -211,7 +221,43 @@ export function searchSchools(
     matches.push({ school: withDistrict, priceUncertain: fit === "uncertain" });
   }
 
-  return { matches, unknownDistrict: false, outsideDistrict, area };
+  const priceRank = rankByPrice(matches, filters.priceRank, rates);
+  return {
+    matches: priceRank?.matches ?? matches,
+    unknownDistrict: false,
+    outsideDistrict,
+    area,
+    priceRank: priceRank ? { kind: priceRank.kind, considered: priceRank.considered, shown: priceRank.shown } : null,
+  };
+}
+
+function comparableBound(school: School, rank: PriceRank, rates: GelPerCurrency | null): number | null {
+  if (costStatusOf(school) === "unknown") return null;
+  const currency = costCurrencyOf(school);
+  const preferred = costBoundOf(school, rank === "cheapest" ? "min" : "max");
+  const fallback = costBoundOf(school, rank === "cheapest" ? "max" : "min");
+  const amount = preferred ?? fallback;
+  if (!currency || amount == null) return null;
+  return yearlyInCurrency(amount, currency, costPeriodOf(school) ?? "year", "GEL", rates);
+}
+
+function rankByPrice(
+  matches: SchoolMatch[],
+  rank: PriceRank | undefined,
+  rates: GelPerCurrency | null
+): { kind: PriceRank; matches: SchoolMatch[]; considered: number; shown: number } | null {
+  if (rank !== "cheapest" && rank !== "expensive") return null;
+  const priced = matches.flatMap((match) => {
+    const amount = comparableBound(match.school, rank, rates);
+    return amount == null ? [] : [{ match, amount }];
+  });
+  priced.sort((left, right) => {
+    const delta = rank === "cheapest" ? left.amount - right.amount : right.amount - left.amount;
+    if (delta !== 0) return delta;
+    return left.match.school.slug.localeCompare(right.match.school.slug);
+  });
+  const shown = priced.length === 0 ? 0 : Math.max(1, Math.round(priced.length / 3));
+  return { kind: rank, matches: priced.slice(0, shown).map((item) => item.match), considered: priced.length, shown };
 }
 
 const MAX_COMPARE = 4;

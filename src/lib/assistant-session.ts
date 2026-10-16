@@ -21,6 +21,14 @@ type DialogueState = {
 
 type Listener = () => void;
 
+function stringList(value: unknown, legacy?: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string" && item.trim() !== "");
+  }
+  if (typeof legacy === "string" && legacy.trim()) return [legacy.trim()];
+  return [];
+}
+
 function asSchool(value: unknown): School | null {
   if (!value || typeof value !== "object") return null;
   const row = value as Record<string, unknown>;
@@ -62,7 +70,9 @@ function asSchool(value: unknown): School | null {
       costMax,
       costPeriod: typeof row.costPeriod === "string" ? row.costPeriod : null,
     }),
-    program: typeof row.program === "string" ? row.program : undefined,
+    programs: stringList(row.programs, row.program),
+    internationalStatuses: stringList(row.internationalStatuses ?? row.authorizations),
+    accreditations: stringList(row.accreditations),
     comment: typeof row.comment === "string" ? row.comment : undefined,
     district: typeof row.district === "string" ? row.district : row.district === null ? null : undefined,
   };

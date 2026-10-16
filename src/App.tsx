@@ -9,6 +9,7 @@ import NotFound from "./components/NotFound";
 import About from "./components/About";
 import Directory from "./components/Directory";
 import CatalogListPage from "./pages/CatalogListPage";
+import HomePage from "./pages/HomePage";
 import MapPage from "./pages/MapPage";
 import RootRedirect from "./pages/RootRedirect";
 import SchoolPage from "./pages/SchoolPage";
@@ -21,7 +22,8 @@ export default function App() {
       <Route path="/admin" element={<AdminPage />} />
       <Route path="/" element={<RootRedirect />} />
       <Route path="/:lang" element={<PublicLayout />}>
-        <Route index element={<MapPage />} />
+        <Route index element={<HomePage />} />
+        <Route path="map" element={<MapPage />} />
         <Route path="schools" element={<CatalogListPage />} />
         <Route path="schools/:slug" element={<SchoolPage />} />
         <Route path="directory" element={<Directory />} />

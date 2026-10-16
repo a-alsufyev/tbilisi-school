@@ -25,7 +25,9 @@ export interface School {
   costCurrency: CostCurrency | null;
   costYear: number | null;
   costPeriod: CostPeriod | null;
-  program?: string;
+  programs: string[];
+  internationalStatuses: string[];
+  accreditations: string[];
   comment?: string;
   district?: string | null;
 }

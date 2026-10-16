@@ -181,7 +181,13 @@ function buildTerms(schools: School[]): Term[] {
     terms.push(place);
   }
   for (const school of schools) {
-    const sources = [school.program ?? "", school.name, ...Object.values(school.names)];
+    const sources = [
+      ...(school.programs ?? []),
+      ...(school.internationalStatuses ?? []),
+      ...(school.accreditations ?? []),
+      school.name,
+      ...Object.values(school.names),
+    ];
     for (const source of sources) {
       for (const word of fold(source).split(/[^\p{L}\p{N}]+/u)) {
         if (word.length < 5) continue;

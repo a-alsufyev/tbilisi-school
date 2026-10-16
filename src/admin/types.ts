@@ -19,7 +19,9 @@ export type AdminSchoolInput = {
   costCurrency: CostCurrency | null;
   costYear: number | null;
   costPeriod: CostPeriod | null;
-  program: string | null;
+  programIds: string[];
+  internationalStatusIds: string[];
+  accreditationIds: string[];
   nameLocale: AdminLocale;
   translations: Record<AdminLocale, AdminTranslation>;
 };
@@ -30,7 +32,7 @@ export type AdminSchool = AdminSchoolInput & {
   lng: number | null;
 };
 
-export type AdminField = "slug" | "address" | "names" | "website" | "cost" | "costYear";
+export type AdminField = "slug" | "address" | "names" | "website" | "cost" | "costYear" | "lookups";
 export type AdminFieldErrors = Partial<Record<AdminField, string>>;
 
 export function blankTranslations(): Record<AdminLocale, AdminTranslation> {
