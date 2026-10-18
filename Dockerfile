@@ -24,6 +24,7 @@ COPY --from=build /app/dist ./dist
 COPY server.ts tsconfig.json ./
 COPY src ./src
 COPY data ./data
+COPY prompt ./prompt
 COPY drizzle ./drizzle
 COPY drizzle.config.ts ./
 
