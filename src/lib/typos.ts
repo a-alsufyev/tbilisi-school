@@ -170,6 +170,22 @@ function addTerm(terms: Term[], seen: Set<string>, label: string, replacement = 
   terms.push({ key, label, replacement });
 }
 
+// A token copied from a school name is not a typo, even one letter away from a programme word:
+// "Georgia" in "International School of Georgia" is not "Georgian".
+function schoolNameWords(schools: School[]): Set<string> {
+  const words = new Set<string>();
+  for (const school of schools) {
+    const sources = [school.name, ...Object.values(school.names ?? {})];
+    for (const source of sources) {
+      if (!source) continue;
+      for (const word of fold(source).split(/[^\p{L}\p{N}]+/u)) {
+        if (word.length >= 5) words.add(word);
+      }
+    }
+  }
+  return words;
+}
+
 function buildTerms(schools: School[]): Term[] {
   const seen = new Set<string>();
   const terms: Term[] = [];
@@ -199,7 +215,8 @@ function buildTerms(schools: School[]): Term[] {
   return terms;
 }
 
-function isKnown(word: string, terms: Term[]): boolean {
+function isKnown(word: string, terms: Term[], names: Set<string>): boolean {
+  if (names.has(word) || GENERIC.has(word)) return true;
   if (terms.some((term) => term.key === word)) return true;
   if (KNOWN_PREFIXES.some((prefix) => word.startsWith(prefix) && word.length > prefix.length)) return true;
   if (resolveDistrictId(word)) return true;
@@ -234,10 +251,11 @@ function words(text: string): string[] {
 
 export function findQueryTypos(text: string, schools: School[]): QueryTypo[] {
   const terms = buildTerms(schools);
+  const names = schoolNameWords(schools);
   const found: QueryTypo[] = [];
   const seen = new Set<string>();
   for (const word of words(text)) {
-    if (seen.has(word) || isKnown(word, terms)) continue;
+    if (seen.has(word) || isKnown(word, terms, names)) continue;
     const hit = bestHit(word, terms);
     if (!hit) continue;
     seen.add(word);

@@ -33,7 +33,7 @@ function SchoolCards({
         return (
           <div
             key={school.id}
-            className={`relative h-full rounded-lg border bg-white transition-colors ${checked ? "border-indigo-400" : "border-gray-200 hover:border-indigo-300"}`}
+            className={`relative isolate h-full rounded-lg border bg-white transition-colors ${checked ? "border-indigo-400" : "border-gray-200 hover:border-indigo-300"}`}
           >
             <label className="absolute right-2 top-2 z-10 flex h-7 w-7 cursor-pointer items-center justify-center rounded-md hover:bg-indigo-50">
               <input
@@ -298,7 +298,7 @@ export default function AssistantPage() {
         {error && <p className="text-sm text-red-600">{t(error)}</p>}
       </div>
 
-      <form onSubmit={send} className="sticky bottom-0 mt-6 flex items-stretch gap-2 bg-gray-50 py-3">
+      <form onSubmit={send} className="sticky bottom-0 z-20 mt-6 flex items-stretch gap-2 bg-gray-50 py-3">
         <label htmlFor="assistant-message" className="sr-only">
           {t("assistant.placeholder")}
         </label>
