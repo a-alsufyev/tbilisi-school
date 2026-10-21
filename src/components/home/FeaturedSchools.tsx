@@ -24,7 +24,10 @@ export default function FeaturedSchools({ schools, prefix }: { schools: School[]
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="flex items-end justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">{t("home.featuredTitle")}</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">{t("home.featuredTitle")}</h2>
+          <p className="text-sm text-gray-500 mt-1">{t("home.place")}</p>
+        </div>
         <Link to={`${prefix}/schools`} className="text-indigo-600 font-semibold hover:underline">
           {t("home.allSchools")} →
         </Link>

@@ -45,16 +45,14 @@ export default function Hero({ prefix, lang, schools }: { prefix: string; lang: 
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 grid lg:grid-cols-5 gap-12 items-center">
         <div className="lg:col-span-3">
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-indigo-100 text-sm font-medium text-indigo-700 shadow-sm">
-            <Sparkles className="w-4 h-4" />
-            {t("nav.assistant")}
-          </span>
-          <h1 className="mt-5 text-4xl sm:text-6xl font-extrabold tracking-tight text-gray-900 leading-[1.05]">
-            {t("home.heroTitle")}
+          <p className="text-sm font-semibold uppercase tracking-wider text-indigo-700">{t("home.heroKicker")}</p>
+          <h1 className="hero-title mt-3 text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-gray-900 leading-[1.1]">
+            {t("brand.slogan")}
           </h1>
           <p className="mt-5 text-lg text-gray-600 max-w-xl">{t("home.heroSubtitle")}</p>
 
           <form onSubmit={submit} className="mt-8 max-w-2xl">
+            <p className="text-sm font-semibold text-gray-800 mb-2">{t("home.searchLabel")}</p>
             <div className="inline-flex p-1 rounded-full bg-gray-100 mb-3">
               <button type="button" className={modeClass(mode === "ai")} onClick={() => setMode("ai")}>
                 {t("home.modeAi")}

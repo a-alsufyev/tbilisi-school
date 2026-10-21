@@ -11,7 +11,7 @@ const languages: { code: UiLang; label: string; flag: string }[] = [
 ];
 
 function navClass(isActive: boolean): string {
-  return `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+  return `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
     isActive
       ? "bg-indigo-100 text-indigo-700"
       : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
@@ -33,17 +33,20 @@ export default function Header() {
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16 items-center">
-          <div className="flex items-center space-x-8 min-w-0">
-            <NavLink
-              to={prefix}
-              end
-              className="text-xl font-bold text-indigo-600 flex items-center gap-2"
-            >
-              <Globe className="w-6 h-6" />
-              <span className="hidden sm:inline">Tbilisi Schools</span>
+        <div className="flex justify-between min-h-16 py-2 items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <NavLink to={prefix} end className="flex items-center gap-2 shrink-0">
+              <Globe className="w-6 h-6 text-indigo-600 shrink-0" />
+              <span className="leading-tight">
+                <span className="block text-xl font-bold text-indigo-600 border-b-2 border-[#7A1F2B] w-fit leading-none pb-0.5">
+                  GeoEduGuide
+                </span>
+                <span className="block text-[11px] font-medium text-gray-500 mt-1 max-w-[9.5rem] sm:max-w-[14rem] leading-snug">
+                  {t("brand.slogan")}
+                </span>
+              </span>
             </NavLink>
-            <nav className="flex space-x-4 overflow-x-auto">
+            <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
               <NavLink to={prefix} end className={({ isActive }) => navClass(isActive)}>
                 <Home className="w-4 h-4" />
                 {t("nav.home")}
@@ -83,7 +86,7 @@ export default function Header() {
             </nav>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 shrink-0">
             {languages.map((item) => (
               <button
                 key={item.code}

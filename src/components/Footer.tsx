@@ -32,7 +32,8 @@ const Footer: React.FC = () => {
   return (
     <footer className="w-full bg-white border-t border-gray-200 py-8 mt-auto">
       <div className="max-w-7xl mx-auto px-4 text-center">
-        <p className="text-gray-600 mb-3">{t("footer.tagline")}</p>
+        <p className="text-gray-600 mb-1">{t("brand.slogan")}</p>
+        <p className="text-gray-500 text-sm mb-3">{t("footer.now")}</p>
         {visits !== null && (
           <p className="text-gray-500 text-sm mb-2">
             {t("footer.visits", { count: visits })}

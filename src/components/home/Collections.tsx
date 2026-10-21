@@ -23,7 +23,8 @@ export default function Collections({ schools, prefix }: { schools: School[]; pr
 
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">{t("home.collectionsTitle")}</h2>
+      <h2 className="text-2xl font-bold text-gray-900">{t("home.collectionsTitle")}</h2>
+      <p className="text-sm text-gray-500 mt-1 mb-6">{t("home.place")}</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {ITEMS.map(({ key, query, icon: Icon, tone }) => (
           <Link
