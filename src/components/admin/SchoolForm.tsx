@@ -1,9 +1,10 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { normalizeInstructionLanguages } from "../../admin/languages";
 import { LOOKUP_KINDS, type LookupKind } from "../../lib/lookups";
 import { COST_CURRENCIES, costYearOptions } from "../../lib/cost";
 import type { CostCurrency, CostPeriod, CostStatus } from "../../types";
 import { suggestSlug } from "../../admin/slug";
+import { externalHref } from "../../lib/website";
 import {
   ADMIN_LOCALES,
   blankTranslations,
@@ -60,6 +61,11 @@ export default function SchoolForm({
   const [translations, setTranslations] = useState(school?.translations ?? blankTranslations());
   const [nameLocale, setNameLocale] = useState<AdminLocale>(school?.nameLocale ?? "en");
   const [tab, setTab] = useState<AdminLocale>("ru");
+  const [linkLabel, setLinkLabel] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkError, setLinkError] = useState("");
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const descriptionSelection = useRef<{ start: number; end: number } | null>(null);
   const [errors, setErrors] = useState<AdminFieldErrors>({});
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -97,6 +103,49 @@ export default function SchoolForm({
     else if (kind === "international_status") setInternationalStatusIds(next);
     else setAccreditationIds(next);
     touch();
+  }
+
+  function captureDescriptionSelection() {
+    const area = descriptionRef.current;
+    if (!area || document.activeElement !== area) {
+      descriptionSelection.current = null;
+      return;
+    }
+    descriptionSelection.current = { start: area.selectionStart, end: area.selectionEnd };
+  }
+
+  function insertDescriptionLink() {
+    const label = linkLabel.trim();
+    const href = externalHref(linkUrl);
+    if (!label || /[\[\]]/.test(label)) {
+      setLinkError("Укажите название без квадратных скобок");
+      return;
+    }
+    if (!href || href.includes(")")) {
+      setLinkError("Укажите адрес сайта, например t.me/schools_Tbilisi");
+      return;
+    }
+    const token = `[${label}](${href})`;
+    const current = translations[tab].description;
+    const start = descriptionSelection.current?.start ?? current.length;
+    const end = descriptionSelection.current?.end ?? current.length;
+    const next = current.slice(0, start) + token + current.slice(end);
+    setTranslations((prev) => ({
+      ...prev,
+      [tab]: { ...prev[tab], description: next },
+    }));
+    setLinkLabel("");
+    setLinkUrl("");
+    setLinkError("");
+    descriptionSelection.current = null;
+    touch();
+    const cursor = start + token.length;
+    requestAnimationFrame(() => {
+      const area = descriptionRef.current;
+      if (!area) return;
+      area.focus();
+      area.setSelectionRange(cursor, cursor);
+    });
   }
 
   function applyNameSlug() {
@@ -502,6 +551,7 @@ export default function SchoolForm({
               </label>
               <textarea
                 id="school-description"
+                ref={descriptionRef}
                 rows={8}
                 value={current.description}
                 onChange={(event) => {
@@ -514,6 +564,47 @@ export default function SchoolForm({
                 }}
                 className={fieldClass}
               />
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                <div>
+                  <label htmlFor="description-link-label" className="block text-sm font-medium text-gray-700 mb-1">
+                    Название
+                  </label>
+                  <input
+                    id="description-link-label"
+                    value={linkLabel}
+                    placeholder="Сайт, группа или канал"
+                    onChange={(event) => {
+                      setLinkLabel(event.target.value);
+                      setLinkError("");
+                    }}
+                    className={fieldClass}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="description-link-url" className="block text-sm font-medium text-gray-700 mb-1">
+                    Ссылка
+                  </label>
+                  <input
+                    id="description-link-url"
+                    value={linkUrl}
+                    placeholder="https://t.me/schools_Tbilisi"
+                    onChange={(event) => {
+                      setLinkUrl(event.target.value);
+                      setLinkError("");
+                    }}
+                    className={fieldClass}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onMouseDown={captureDescriptionSelection}
+                  onClick={insertDescriptionLink}
+                  className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Вставить в текст
+                </button>
+              </div>
+              {linkError && <p className="mt-1 text-sm text-red-600">{linkError}</p>}
             </div>
           </div>
         </div>

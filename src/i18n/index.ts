@@ -414,7 +414,7 @@ const resources = {
           de: "Немецкий",
         },
         stats: {
-          scope: "Сейчас в Тбилиси",
+          scope: "Сейчас в каталоге",
           schools: "Школ",
           languages: "Языков",
           programs: "Программ",

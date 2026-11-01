@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { School } from "../types";
 import { ArrowLeft, MapPin, Languages, CreditCard, BookOpen, MessageSquare, Loader2, Globe } from "lucide-react";
+import { descriptionParts } from "../lib/description-links";
 import { externalHref } from "../lib/website";
 import { localeSchoolName, primarySchoolName } from "../hooks/useSchoolTranslations";
 import { formatInstructionLanguagesLabel } from "../admin/languages";
@@ -240,7 +241,22 @@ const Catalog: React.FC<CatalogProps> = ({ schools, apiKey, selectedSchool }) =>
                   </div>
                 ) : (
                   <p className="text-lg text-gray-900 leading-relaxed whitespace-pre-wrap">
-                    {description !== null ? description : selectedSchool.comment || "—"}
+                    {descriptionParts(description !== null ? description : selectedSchool.comment || "—").map(
+                      (part, index) =>
+                        part.type === "link" ? (
+                          <a
+                            key={index}
+                            href={part.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-indigo-600 underline break-all"
+                          >
+                            {part.label}
+                          </a>
+                        ) : (
+                          <span key={index}>{part.text}</span>
+                        )
+                    )}
                   </p>
                 )}
               </div>
