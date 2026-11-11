@@ -24,6 +24,11 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
+  // Public traffic reaches this process through nginx on the same VPS.
+  // That connection comes from loopback or the Docker bridge, so the visitor
+  // address is the one nginx appends to X-Forwarded-For, not the socket peer.
+  app.set("trust proxy", "loopback, linklocal, uniquelocal");
+
   app.use(express.json({ limit: "256kb" }));
   app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
     if (
@@ -87,7 +92,7 @@ async function startServer() {
 
   app.post("/api/visits", async (req, res) => {
     try {
-      await recordVisit(req.socket.remoteAddress);
+      await recordVisit(req.ip);
       res.json({ ok: true });
     } catch (error) {
       console.error("Error incrementing visits:", error);
@@ -102,7 +107,7 @@ async function startServer() {
       return;
     }
 
-    const ip = req.socket.remoteAddress ?? "unknown";
+    const ip = req.ip || "unknown";
     if (!allowAssistantRequest(ip)) {
       res.status(429).json({ error: "rate_limited" });
       return;
