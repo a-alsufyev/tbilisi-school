@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  date,
   doublePrecision,
   integer,
   pgTable,
@@ -47,6 +48,16 @@ export const siteStats = pgTable("site_stats", {
   key: text("key").primaryKey(),
   value: integer("value").notNull().default(0),
 });
+
+export const visitDaily = pgTable(
+  "visit_daily",
+  {
+    day: date("day", { mode: "string" }).notNull(),
+    country: text("country").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (table) => [primaryKey({ columns: [table.day, table.country] })]
+);
 
 export const lookupItems = pgTable(
   "lookup_items",

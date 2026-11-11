@@ -1,9 +1,9 @@
-import { eq, sql } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import { costBoundOf, costCurrencyOf, costPeriodOf, costYearOf, isCostStatus } from "../lib/cost";
 import { isSupportedUiLang } from "../lib/schools";
 import { db } from "./index";
 import { listLookupLinks, lookupLabelsForSchool } from "./lookup-queries";
-import { schools, schoolTranslations, siteStats } from "./schema";
+import { schools, schoolTranslations, visitDaily } from "./schema";
 import type { School } from "../types";
 
 export async function listSchools(): Promise<School[]> {
@@ -65,20 +65,37 @@ export async function getSchoolDescription(
   return match ? match.description : "";
 }
 
-export async function getVisitTotal(): Promise<number> {
-  const [row] = await db.select().from(siteStats).where(eq(siteStats.key, "visits")).limit(1);
-  return row?.value ?? 0;
+export type VisitCountryCount = { code: string; count: number };
+export type VisitDay = { day: string; countries: VisitCountryCount[] };
+
+export async function incrementVisitCount(day: string, country: string): Promise<void> {
+  await db
+    .insert(visitDaily)
+    .values({ day, country, count: 1 })
+    .onConflictDoUpdate({
+      target: [visitDaily.day, visitDaily.country],
+      set: { count: sql`${visitDaily.count} + 1` },
+    });
 }
 
-export async function incrementVisitTotal(): Promise<number> {
+export async function listVisitDays(): Promise<VisitDay[]> {
   const rows = await db
-    .insert(siteStats)
-    .values({ key: "visits", value: 1 })
-    .onConflictDoUpdate({
-      target: siteStats.key,
-      set: { value: sql`${siteStats.value} + 1` },
+    .select({
+      day: visitDaily.day,
+      country: visitDaily.country,
+      count: visitDaily.count,
     })
-    .returning({ value: siteStats.value });
+    .from(visitDaily)
+    .orderBy(desc(visitDaily.day), desc(visitDaily.count), asc(visitDaily.country));
 
-  return rows[0]?.value ?? 1;
+  const days: VisitDay[] = [];
+  for (const row of rows) {
+    const last = days.at(-1);
+    if (!last || last.day !== row.day) {
+      days.push({ day: row.day, countries: [{ code: row.country, count: row.count }] });
+      continue;
+    }
+    last.countries.push({ code: row.country, count: row.count });
+  }
+  return days;
 }

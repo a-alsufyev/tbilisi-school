@@ -28,6 +28,7 @@ import {
   listLookupItems,
   updateLookupItem,
 } from "../db/lookup-queries";
+import { visitDays } from "../lib/visits";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -165,6 +166,10 @@ async function update(req: Request, res: Response): Promise<void> {
   }
 }
 
+async function listVisits(_req: Request, res: Response): Promise<void> {
+  res.json(await visitDays());
+}
+
 async function listLookups(_req: Request, res: Response): Promise<void> {
   res.json(await listLookupItems());
 }
@@ -242,6 +247,7 @@ export function registerAdminRoutes(app: Express): void {
   app.get("/api/admin/schools", requireAdmin, asyncRoute(list));
   app.post("/api/admin/schools", requireAdmin, asyncRoute(create));
   app.put("/api/admin/schools/:id", requireAdmin, asyncRoute(update));
+  app.get("/api/admin/visits", requireAdmin, asyncRoute(listVisits));
   app.get("/api/admin/lookups", requireAdmin, asyncRoute(listLookups));
   app.post("/api/admin/lookups", requireAdmin, asyncRoute(createLookup));
   app.patch("/api/admin/lookups/:id", requireAdmin, asyncRoute(renameLookup));

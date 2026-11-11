@@ -6,6 +6,8 @@ import Footer from "./Footer";
 import { isSupportedUiLang } from "../lib/schools";
 import type { Config, School } from "../types";
 
+const VISIT_SESSION_KEY = "tbilisi-schools-visit-counted";
+
 type LangLayoutProps = {
   schools: School[];
   config: Config | null;
@@ -22,6 +24,22 @@ export default function LangLayout({ schools, config, loadError }: LangLayoutPro
       void i18n.changeLanguage(lang);
     }
   }, [lang, i18n]);
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(VISIT_SESSION_KEY) === "1") return;
+    } catch {
+      return;
+    }
+    void fetch("/api/visits", { method: "POST" }).then((response) => {
+      if (!response.ok) return;
+      try {
+        sessionStorage.setItem(VISIT_SESSION_KEY, "1");
+      } catch {
+        // The flag is only a same-tab guard, not a user record.
+      }
+    });
+  }, []);
 
   if (!isSupportedUiLang(lang)) {
     const rest = location.pathname.replace(/^\/[^/]+/, "") || "";

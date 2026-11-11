@@ -119,7 +119,6 @@ const resources = {
         tagline: 'Your Guide to Education in Georgia',
         now: 'Now: schools in Tbilisi.',
         copyright: 'GeoEduGuide',
-        visits: 'Visits: {{count}}',
       },
       map: {
         loading: 'Loading map...',
@@ -306,7 +305,6 @@ const resources = {
         tagline: 'თქვენი გზამკვლევი საქართველოს განათლებაში',
         now: 'ახლა: სკოლები თბილისში.',
         copyright: 'GeoEduGuide',
-        visits: 'ვიზიტები: {{count}}',
       },
       map: {
         loading: 'რუკა იტვირთება...',
@@ -493,7 +491,6 @@ const resources = {
         tagline: 'Ваш гид по образованию в Грузии',
         now: 'Сейчас: школы Тбилиси.',
         copyright: 'GeoEduGuide',
-        visits: 'Посещений: {{count}}',
       },
       map: {
         loading: 'Загрузка карты...',
@@ -680,7 +677,6 @@ const resources = {
         tagline: 'Ihr Guide zur Bildung in Georgien',
         now: 'Jetzt: Schulen in Tiflis.',
         copyright: 'GeoEduGuide',
-        visits: 'Besuche: {{count}}',
       },
       map: {
         loading: 'Karte wird geladen...',

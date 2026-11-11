@@ -3,6 +3,7 @@ import { formatInstructionLanguagesLabel } from "../../admin/languages";
 import { ADMIN_LOCALES, schoolLabel, type AdminSchool } from "../../admin/types";
 import LookupDirectory from "./LookupDirectory";
 import SchoolForm from "./SchoolForm";
+import VisitStats from "./VisitStats";
 
 type AdminWorkspaceProps = {
   onLogout: () => void;
@@ -20,7 +21,7 @@ export default function AdminWorkspace({ onLogout }: AdminWorkspaceProps) {
   const [query, setQuery] = useState("");
   const [selection, setSelection] = useState<Selection>(null);
   const [notice, setNotice] = useState("");
-  const [section, setSection] = useState<"schools" | "lookups">("schools");
+  const [section, setSection] = useState<"schools" | "lookups" | "stats">("schools");
 
   useEffect(() => {
     let cancelled = false;
@@ -94,6 +95,7 @@ export default function AdminWorkspace({ onLogout }: AdminWorkspaceProps) {
           [
             ["schools", "Школы"],
             ["lookups", "Справочники"],
+            ["stats", "Статистика"],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -112,6 +114,8 @@ export default function AdminWorkspace({ onLogout }: AdminWorkspaceProps) {
       </nav>
       {section === "lookups" ? (
         <LookupDirectory onUnauthorized={onLogout} />
+      ) : section === "stats" ? (
+        <VisitStats onUnauthorized={onLogout} />
       ) : (
       <div className="flex-1 min-h-0 flex flex-col md:grid md:grid-cols-[320px_minmax(0,1fr)]">
         <aside className={listClass}>

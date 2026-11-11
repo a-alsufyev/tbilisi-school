@@ -64,6 +64,13 @@
       "when": 1791063000000,
       "tag": "0008_international_status",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791066000000,
+      "tag": "0009_visit_daily",
+      "breakpoints": true
     }
   ]
 }

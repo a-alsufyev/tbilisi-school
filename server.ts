@@ -11,7 +11,7 @@ import { registerAdminRoutes } from "./src/admin/routes";
 import { AssistantConfigError, parseAssistantRequest, runAssistant } from "./src/lib/assistant";
 import { allowAssistantRequest } from "./src/lib/assistant-rate";
 import { isSafeSchoolIdentifier, normalizeUiLanguage } from "./src/lib/schools";
-import { getVisitStats, incrementVisitStats } from "./src/lib/visits";
+import { recordVisit } from "./src/lib/visits";
 import { prepareDatabase } from "./src/db/bootstrap";
 import { listPublicDirectory } from "./src/db/lookup-queries";
 import { getSchoolDescription, listSchools } from "./src/db/queries";
@@ -85,18 +85,10 @@ async function startServer() {
     });
   });
 
-  app.get("/api/visits", async (_req, res) => {
+  app.post("/api/visits", async (req, res) => {
     try {
-      res.json(await getVisitStats());
-    } catch (error) {
-      console.error("Error reading visits:", error);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
-
-  app.post("/api/visits", async (_req, res) => {
-    try {
-      res.json(await incrementVisitStats());
+      await recordVisit(req.socket.remoteAddress);
+      res.json({ ok: true });
     } catch (error) {
       console.error("Error incrementing visits:", error);
       res.status(500).json({ error: "Internal server error" });
