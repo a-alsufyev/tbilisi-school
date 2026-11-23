@@ -119,7 +119,7 @@ const Catalog: React.FC<CatalogProps> = ({ schools, apiKey, selectedSchool }) =>
             className="h-52 sm:h-60"
           >
             <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
-              <h2 className="text-3xl font-bold drop-shadow-sm">{primaryName}</h2>
+              <h1 className="text-3xl font-bold drop-shadow-sm">{primaryName}</h1>
               {localName && <p className="text-lg text-white/85 mt-1 font-medium">{localName}</p>}
               <SchoolBadges school={selectedSchool} maxPrograms={4} className="mt-3" />
             </div>

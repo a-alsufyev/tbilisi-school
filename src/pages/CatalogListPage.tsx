@@ -36,6 +36,9 @@ export default function CatalogListPage() {
 
   return (
     <>
+      <div className="max-w-7xl mx-auto px-4 pt-8">
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">{t("seo.schools.h1")}</h1>
+      </div>
       {active && (
         <div className="max-w-7xl mx-auto px-4 pt-6 flex flex-wrap items-center gap-2 text-sm">
           <span className="text-gray-500">{t("home.filtersApplied", { count: filtered.length })}</span>

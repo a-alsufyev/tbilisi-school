@@ -49,6 +49,15 @@ export async function listSchools(): Promise<School[]> {
   });
 }
 
+export type SitemapSchool = { slug: string; updatedAt: Date };
+
+export async function listSitemapSchools(): Promise<SitemapSchool[]> {
+  return db
+    .select({ slug: schools.slug, updatedAt: schools.updatedAt })
+    .from(schools)
+    .orderBy(asc(schools.slug));
+}
+
 export async function getSchoolDescription(
   slug: string,
   locale: string

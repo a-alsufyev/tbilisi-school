@@ -109,6 +109,7 @@ cp .env.example .env
 | Переменная | Значение |
 |---|---|
 | `YANDEX_MAPS_API_KEY` | Ключ карты. В кабинете Яндекса ограничить его боевым доменом |
+| `PUBLIC_SITE_URL` | Боевой origin без слэша на конце, например `https://schools.example.com`. Из него собираются canonical, sitemap и hreflang. Пустое значение: берётся `Host` и `X-Forwarded-Proto` |
 | `POSTGRES_USER` | `tbilisi`, как в дампе и в примере |
 | `POSTGRES_PASSWORD` | Новый пароль, hex, без `@`, `:`, `/` и пробелов |
 | `POSTGRES_DB` | `tbilisi` |

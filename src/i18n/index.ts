@@ -186,6 +186,44 @@ const resources = {
           gldani: 'Gldani',
         },
       },
+      seo: {
+        siteName: 'GeoEduGuide',
+        place: 'Tbilisi',
+        home: {
+          title: 'GeoEduGuide — Schools in Tbilisi',
+          description: 'A guide to education in Georgia. The first chapter is a directory of schools in Tbilisi, with languages, programmes, fees and a map.',
+        },
+        map: {
+          title: 'School map of Tbilisi — GeoEduGuide',
+          description: 'Map of schools in Tbilisi. See languages, programmes and districts.',
+          h1: 'Schools in Tbilisi on the map',
+        },
+        schools: {
+          title: 'Schools in Tbilisi — GeoEduGuide',
+          description: 'Directory of schools in Tbilisi. Compare language of instruction, programme and fees.',
+          h1: 'Schools in Tbilisi',
+        },
+        school: {
+          title: '{{name}} — Tbilisi',
+          fallback: '{{name}}, a school in Tbilisi. Address: {{address}}. Languages of instruction: {{languages}}.',
+        },
+        directory: {
+          title: 'Programmes and accreditations — GeoEduGuide',
+          description: 'What the programmes, international statuses and accreditations on school cards mean.',
+        },
+        assistant: {
+          title: 'AI school assistant — GeoEduGuide',
+          description: 'Describe a language, curriculum, district or budget in Tbilisi. The assistant suggests schools from the catalog.',
+        },
+        about: {
+          title: 'About GeoEduGuide',
+          description: 'GeoEduGuide is a guide to education in Georgia. The first chapter is a directory of schools in Tbilisi.',
+        },
+        notFound: {
+          title: 'Page not found — GeoEduGuide',
+          description: 'This address does not exist.',
+        },
+      },
     },
   },
   ge: {
@@ -370,6 +408,44 @@ const resources = {
           didube: 'დიდუბე',
           nadzaladevi: 'ნაძალადევი',
           gldani: 'გლდანი',
+        },
+      },
+      seo: {
+        siteName: 'GeoEduGuide',
+        place: 'თბილისი',
+        home: {
+          title: 'GeoEduGuide — თბილისის სკოლები',
+          description: 'გზამკვლევი საქართველოს განათლებაში. პირველი თავი თბილისის სკოლების ცნობარია: ენები, პროგრამები, საფასური და რუკა.',
+        },
+        map: {
+          title: 'თბილისის სკოლების რუკა — GeoEduGuide',
+          description: 'თბილისის სკოლების რუკა: სწავლების ენები, პროგრამები და რაიონები.',
+          h1: 'თბილისის სკოლები რუკაზე',
+        },
+        schools: {
+          title: 'თბილისის სკოლები — GeoEduGuide',
+          description: 'თბილისის სკოლების ცნობარი. შეადარეთ სწავლების ენა, პროგრამა და საფასური.',
+          h1: 'თბილისის სკოლები',
+        },
+        school: {
+          title: '{{name}} — თბილისი',
+          fallback: '{{name}}, სკოლა თბილისში. მისამართი: {{address}}. სწავლების ენები: {{languages}}.',
+        },
+        directory: {
+          title: 'პროგრამები და აკრედიტაციები — GeoEduGuide',
+          description: 'რას ნიშნავს პროგრამები, საერთაშორისო სტატუსები და აკრედიტაციები სკოლის ბარათებზე.',
+        },
+        assistant: {
+          title: 'AI-ასისტენტი სკოლებისთვის — GeoEduGuide',
+          description: 'აღწერეთ ენა, პროგრამა, რაიონი ან ბიუჯეტი თბილისში. ასისტენტი შემოგთავაზებთ სკოლებს კატალოგიდან.',
+        },
+        about: {
+          title: 'GeoEduGuide-ის შესახებ',
+          description: 'GeoEduGuide საქართველოს განათლების გზამკვლევია. პირველი თავი თბილისის სკოლების ცნობარია.',
+        },
+        notFound: {
+          title: 'გვერდი ვერ მოიძებნა — GeoEduGuide',
+          description: 'ასეთი მისამართი არ არსებობს.',
         },
       },
     },
@@ -558,6 +634,44 @@ const resources = {
           gldani: 'Глдани',
         },
       },
+      seo: {
+        siteName: 'GeoEduGuide',
+        place: 'Тбилиси',
+        home: {
+          title: 'GeoEduGuide — школы Тбилиси',
+          description: 'Гид по образованию в Грузии. Первая глава — справочник школ Тбилиси: языки, программы, стоимость и карта.',
+        },
+        map: {
+          title: 'Карта школ Тбилиси — GeoEduGuide',
+          description: 'Карта школ Тбилиси: языки обучения, программы и районы.',
+          h1: 'Школы Тбилиси на карте',
+        },
+        schools: {
+          title: 'Школы Тбилиси — GeoEduGuide',
+          description: 'Справочник школ Тбилиси. Сравните язык обучения, программу и стоимость.',
+          h1: 'Школы Тбилиси',
+        },
+        school: {
+          title: '{{name}} — Тбилиси',
+          fallback: '{{name}}, школа в Тбилиси. Адрес: {{address}}. Языки обучения: {{languages}}.',
+        },
+        directory: {
+          title: 'Программы и аккредитации — GeoEduGuide',
+          description: 'Что означают программы, международные статусы и аккредитации на карточках школ.',
+        },
+        assistant: {
+          title: 'AI-ассистент по школам — GeoEduGuide',
+          description: 'Опишите язык, программу, район или бюджет в Тбилиси. Ассистент предложит школы из каталога.',
+        },
+        about: {
+          title: 'О проекте GeoEduGuide',
+          description: 'GeoEduGuide — гид по образованию в Грузии. Первая глава — справочник школ Тбилиси.',
+        },
+        notFound: {
+          title: 'Страница не найдена — GeoEduGuide',
+          description: 'Такого адреса нет.',
+        },
+      },
     },
   },
   de: {
@@ -742,6 +856,44 @@ const resources = {
           didube: 'Didube',
           nadzaladevi: 'Nadsaladewi',
           gldani: 'Gldani',
+        },
+      },
+      seo: {
+        siteName: 'GeoEduGuide',
+        place: 'Tiflis',
+        home: {
+          title: 'GeoEduGuide — Schulen in Tiflis',
+          description: 'Ein Guide zur Bildung in Georgien. Das erste Kapitel ist ein Verzeichnis der Schulen in Tiflis: Sprachen, Programme, Gebühren und eine Karte.',
+        },
+        map: {
+          title: 'Schulenkarte von Tiflis — GeoEduGuide',
+          description: 'Karte der Schulen in Tiflis: Unterrichtssprachen, Programme und Bezirke.',
+          h1: 'Schulen in Tiflis auf der Karte',
+        },
+        schools: {
+          title: 'Schulen in Tiflis — GeoEduGuide',
+          description: 'Verzeichnis der Schulen in Tiflis. Vergleichen Sie Unterrichtssprache, Programm und Gebühren.',
+          h1: 'Schulen in Tiflis',
+        },
+        school: {
+          title: '{{name}} — Tiflis',
+          fallback: '{{name}}, eine Schule in Tiflis. Adresse: {{address}}. Unterrichtssprachen: {{languages}}.',
+        },
+        directory: {
+          title: 'Programme und Akkreditierungen — GeoEduGuide',
+          description: 'Was die Programme, internationalen Status und Akkreditierungen auf den Schulkarten bedeuten.',
+        },
+        assistant: {
+          title: 'AI-Schulassistent — GeoEduGuide',
+          description: 'Beschreiben Sie Sprache, Lehrplan, Bezirk oder Budget in Tiflis. Der Assistent schlägt Schulen aus dem Katalog vor.',
+        },
+        about: {
+          title: 'Über GeoEduGuide',
+          description: 'GeoEduGuide ist ein Guide zur Bildung in Georgien. Das erste Kapitel ist ein Verzeichnis der Schulen in Tiflis.',
+        },
+        notFound: {
+          title: 'Seite nicht gefunden — GeoEduGuide',
+          description: 'Diese Adresse gibt es nicht.',
         },
       },
     },

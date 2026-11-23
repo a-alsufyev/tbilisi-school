@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import AdminLogin from "../components/admin/AdminLogin";
 import AdminWorkspace from "../components/admin/AdminWorkspace";
+import { applySeo, readSiteOrigin, resolveSeo } from "../seo/document";
 
 type Gate = "loading" | "guest" | "in";
 
@@ -8,6 +9,20 @@ export default function AdminPage() {
   const [gate, setGate] = useState<Gate>("loading");
   const [misconfigured, setMisconfigured] = useState(false);
   const leave = useCallback(() => setGate("guest"), []);
+
+  useEffect(() => {
+    applySeo(
+      resolveSeo({
+        origin: readSiteOrigin(),
+        pathname: "/admin",
+        search: "",
+        schools: [],
+        catalogKnown: true,
+        description: null,
+        hasCover: false,
+      })
+    );
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

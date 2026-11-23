@@ -13,7 +13,7 @@ const About: React.FC = () => {
         transition={{ duration: 0.5 }}
         className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 md:p-12"
       >
-        <h2 className="text-3xl font-bold text-gray-900 mb-6">{t('about.title')}</h2>
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">{t('about.title')}</h1>
         <div className="prose prose-indigo max-w-none">
           <p className="text-lg text-gray-600 leading-relaxed mb-8">
             {t('about.content')}

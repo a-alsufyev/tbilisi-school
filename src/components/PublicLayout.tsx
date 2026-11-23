@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import LangLayout from "./LangLayout";
+import PageSeo from "./PageSeo";
 import type { Config, School } from "../types";
 
 export default function PublicLayout() {
@@ -44,5 +45,10 @@ export default function PublicLayout() {
     );
   }
 
-  return <LangLayout schools={schools} config={config} loadError={loadError} />;
+  return (
+    <>
+      <PageSeo schools={schools} loadError={loadError} />
+      <LangLayout schools={schools} config={config} loadError={loadError} />
+    </>
+  );
 }

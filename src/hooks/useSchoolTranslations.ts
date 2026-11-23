@@ -1,5 +1,7 @@
-import { School } from "../types";
+import { School, type SchoolNames } from "../types";
 import { normalizeUiLanguage } from "../lib/schools";
+
+type NamedSchool = { name: string; names?: SchoolNames };
 
 export function primarySchoolName(school: School): string {
   const locale = school.nameLocale ?? "en";
@@ -12,7 +14,7 @@ export function localeSchoolName(school: School, currentLang: string): string {
   return local;
 }
 
-export function localizedSchoolName(school: School, currentLang: string): string {
+export function localizedSchoolName(school: NamedSchool, currentLang: string): string {
   const lang = normalizeUiLanguage(currentLang);
   return school.names?.[lang] || school.names?.en || school.names?.ru || school.name;
 }
