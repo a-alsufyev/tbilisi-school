@@ -18,6 +18,12 @@ const About: React.FC = () => {
           <p className="text-lg text-gray-600 leading-relaxed mb-8">
             {t('about.content')}
           </p>
+          <p className="text-lg text-gray-900 mb-8">
+            {t('about.contact')}:{' '}
+            <a href="mailto:geoeduguide.ge@gmail.com" className="text-indigo-600 hover:underline">
+              geoeduguide.ge@gmail.com
+            </a>
+          </p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
             <div className="p-6 bg-indigo-50 rounded-xl">

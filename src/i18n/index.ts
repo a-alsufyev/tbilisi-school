@@ -109,6 +109,7 @@ const resources = {
         reviewsContent: 'Coming soon: real parent reviews and ratings for each school.',
         detailsTitle: 'Details',
         detailsContent: 'Coming soon: tuition fees, contact info, and admission dates.',
+        contact: 'Contact us',
       },
       app: {
         loadError: 'Could not load the school list. Please try again later.',
@@ -333,6 +334,7 @@ const resources = {
         reviewsContent: 'მალე: მშობლების რეალური მიმოხილვები და შეფასებები.',
         detailsTitle: 'დეტალები',
         detailsContent: 'მალე: ღირებულება, საკონტაქტო ინფორმაცია და მიღების თარიღები.',
+        contact: 'დაგვიკავშირდით',
       },
       app: {
         loadError: 'სკოლების სიის ჩატვირთვა ვერ მოხერხდა. გთხოვთ, სცადოთ მოგვიანებით.',
@@ -557,6 +559,7 @@ const resources = {
         reviewsContent: 'Скоро: отзывы родителей и оценки каждой школы.',
         detailsTitle: 'Подробности',
         detailsContent: 'Скоро: стоимость, контакты и даты поступления.',
+        contact: 'Связаться с нами',
       },
       app: {
         loadError: 'Не удалось загрузить список школ. Попробуйте позже.',
@@ -781,6 +784,7 @@ const resources = {
         reviewsContent: 'Demnächst: echte Elternbewertungen und Noten für jede Schule.',
         detailsTitle: 'Details',
         detailsContent: 'Demnächst: Gebühren, Kontakte und Aufnahmetermine.',
+        contact: 'Kontakt',
       },
       app: {
         loadError: 'Die Schulliste konnte nicht geladen werden. Bitte später erneut versuchen.',
