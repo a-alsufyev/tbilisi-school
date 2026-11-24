@@ -1,6 +1,6 @@
 import { NavLink, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Home, Map as MapIcon, Info, Globe, MessageCircle } from "lucide-react";
+import { Map as MapIcon, Info, Globe, MessageCircle } from "lucide-react";
 import { isSupportedUiLang, replaceLangPrefix, type UiLang } from "../lib/schools";
 
 const languages: { code: UiLang; label: string; flag: string }[] = [
@@ -47,10 +47,6 @@ export default function Header() {
               </span>
             </NavLink>
             <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
-              <NavLink to={prefix} end className={({ isActive }) => navClass(isActive)}>
-                <Home className="w-4 h-4" />
-                {t("nav.home")}
-              </NavLink>
               <NavLink to={`${prefix}/map`} className={({ isActive }) => navClass(isActive)}>
                 <MapIcon className="w-4 h-4" />
                 {t("nav.map")}
